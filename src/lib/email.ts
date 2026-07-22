@@ -15,6 +15,19 @@ const transporter =
       })
     : null;
 
+async function sendMail(to: string, subject: string, html: string) {
+  if (!transporter || !gmailUser) {
+    console.warn("GMAIL_USER / GMAIL_APP_PASSWORD not set — skipping email send.");
+    return;
+  }
+  await transporter.sendMail({
+    from: `"Court of Apil Pickleball Hub" <${gmailUser}>`,
+    to,
+    subject,
+    html,
+  });
+}
+
 export async function sendConfirmationEmail(booking: {
   email: string;
   customerName: string;
@@ -26,11 +39,6 @@ export async function sendConfirmationEmail(booking: {
   paddleCount: number;
   referenceNumber: string;
 }) {
-  if (!transporter) {
-    console.warn("GMAIL_USER / GMAIL_APP_PASSWORD not set — skipping email send.");
-    return;
-  }
-
   const dateStr = booking.date.toLocaleDateString("en-PH", {
     weekday: "long",
     year: "numeric",
@@ -44,11 +52,7 @@ export async function sendConfirmationEmail(booking: {
     .map((h) => `<li>${labelForSlot(h)}</li>`)
     .join("");
 
-  await transporter.sendMail({
-    from: `"Court of Apil" <${gmailUser}>`,
-    to: booking.email,
-    subject: "Your Court of Apil booking is confirmed! 🏓",
-    html: `
+  const html = `
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;">
         <div style="background:#F46036;padding:24px;border-radius:16px 16px 0 0;">
           <h1 style="color:white;margin:0;font-size:22px;">Booking Confirmed 🏓</h1>
@@ -68,8 +72,9 @@ export async function sendConfirmationEmail(booking: {
           <p style="color:#999;font-size:12px;margin-top:24px;">Court of Apil Pickleball Hub — Talisay City, Cebu</p>
         </div>
       </div>
-    `,
-  });
+    `;
+
+  await sendMail(booking.email, "Your Court of Apil booking is confirmed! 🏓", html);
 }
 
 export async function sendRejectionEmail(booking: {
@@ -80,11 +85,6 @@ export async function sendRejectionEmail(booking: {
   referenceNumber: string;
   reason?: string | null;
 }) {
-  if (!transporter) {
-    console.warn("GMAIL_USER / GMAIL_APP_PASSWORD not set — skipping email send.");
-    return;
-  }
-
   const dateStr = booking.date.toLocaleDateString("en-PH", {
     weekday: "long",
     year: "numeric",
@@ -100,11 +100,7 @@ export async function sendRejectionEmail(booking: {
 
   const reasonText = booking.reason?.trim() || "We couldn't verify your payment details.";
 
-  await transporter.sendMail({
-    from: `"Court of Apil" <${gmailUser}>`,
-    to: booking.email,
-    subject: "Update on your Court of Apil booking",
-    html: `
+  const html = `
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;">
         <div style="background:#173A45;padding:24px;border-radius:16px 16px 0 0;">
           <h1 style="color:white;margin:0;font-size:22px;">Booking Not Confirmed</h1>
@@ -122,6 +118,7 @@ export async function sendRejectionEmail(booking: {
           <p style="color:#999;font-size:12px;margin-top:24px;">Court of Apil Pickleball Hub — Talisay City, Cebu</p>
         </div>
       </div>
-    `,
-  });
+    `;
+
+  await sendMail(booking.email, "Update on your Court of Apil booking", html);
 }
