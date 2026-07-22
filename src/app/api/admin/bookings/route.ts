@@ -1,69 +1,80 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthed } from "@/lib/auth";
-import { sendConfirmationEmail, sendRejectionEmail } from "@/lib/email";
+import { priceForSlot, rentalPrice } from "@/lib/pricing";
+import type { Prisma as PrismaNS } from "@prisma/client";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
-  const { status, adminNote } = body;
+  const dateParam = req.nextUrl.searchParams.get("date");
+  const where = dateParam ? { date: new Date(dateParam + "T00:00:00.000Z") } : {};
 
-  if (!["PENDING", "CONFIRMED", "REJECTED", "CANCELLED"].includes(status)) {
-    return NextResponse.json({ error: "Invalid status." }, { status: 400 });
-  }
-
-  const booking = await prisma.booking.update({
-    where: { id: params.id },
-    data: { status, adminNote },
+  const bookings = await prisma.booking.findMany({
+    where,
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
 
-  // If admin cancels/rejects, free up the slots so others can book them
-  if (status === "REJECTED" || status === "CANCELLED") {
-    await prisma.slot.deleteMany({ where: { bookingId: booking.id } });
-  }
-
-  if (status === "CONFIRMED") {
-    try {
-      await sendConfirmationEmail({
-        email: booking.email,
-        customerName: booking.customerName,
-        date: booking.date,
-        startHours: booking.startHours,
-        courtTotal: booking.courtTotal,
-        rentalTotal: booking.rentalTotal,
-        grandTotal: booking.grandTotal,
-        paddleCount: booking.paddleCount,
-        referenceNumber: booking.referenceNumber,
-      });
-    } catch (e) {
-      console.error("Email send failed:", e);
-    }
-  }
-
-  if (status === "REJECTED") {
-    try {
-      await sendRejectionEmail({
-        email: booking.email,
-        customerName: booking.customerName,
-        date: booking.date,
-        startHours: booking.startHours,
-        referenceNumber: booking.referenceNumber,
-        reason: adminNote,
-      });
-    } catch (e) {
-      console.error("Email send failed:", e);
-    }
-  }
-
-  return NextResponse.json({ success: true, booking });
+  return NextResponse.json({ bookings });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+// Manual booking creation by admin (e.g. phone-in / walk-in reservations)
+export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await prisma.slot.deleteMany({ where: { bookingId: params.id } });
-  await prisma.booking.delete({ where: { id: params.id } });
+  try {
+    const body = await req.json();
+    const {
+      customerName,
+      contactNumber,
+      email,
+      date: dateStr,
+      hours,
+      paddleCount = 0,
+      status = "CONFIRMED",
+      adminNote,
+    } = body;
 
-  return NextResponse.json({ success: true });
+    if (!customerName || !dateStr || !Array.isArray(hours) || hours.length === 0) {
+      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+    }
+
+    const date = new Date(dateStr + "T00:00:00.000Z");
+    const courtTotal = hours.reduce((sum: number, h: number) => sum + priceForSlot(date, h), 0);
+    const rentalTotal = rentalPrice(paddleCount);
+
+    const booking = await prisma.$transaction(async (tx: PrismaNS.TransactionClient) => {
+      const created = await tx.booking.create({
+        data: {
+          customerName,
+          contactNumber: contactNumber || "00000000000",
+          email: email || "walkin@courtofapil.local",
+          date,
+          startHours: hours,
+          courtTotal,
+          paddleCount,
+          rentalTotal,
+          grandTotal: courtTotal + rentalTotal,
+          paymentMethod: "GCASH",
+          referenceNumber: "ADMIN-MANUAL",
+          amountSent: courtTotal + rentalTotal,
+          proofOfPaymentUrl: "",
+          status,
+          adminNote: adminNote || "Manually added by admin",
+        },
+      });
+      await tx.slot.createMany({
+        data: hours.map((h: number) => ({ date, hour: h, bookingId: created.id })),
+      });
+      return created;
+    });
+
+    return NextResponse.json({ success: true, booking });
+  } catch (err: any) {
+    if (err?.code === "P2002") {
+      return NextResponse.json({ error: "One of those slots is already booked." }, { status: 409 });
+    }
+    console.error(err);
+    return NextResponse.json({ error: "Failed to create booking." }, { status: 500 });
+  }
 }
