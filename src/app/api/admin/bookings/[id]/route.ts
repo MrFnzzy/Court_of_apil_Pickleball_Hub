@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthed } from "@/lib/auth";
-import { sendConfirmationEmail } from "@/lib/email";
+import { sendConfirmationEmail, sendRejectionEmail } from "@/lib/email";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -35,6 +35,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         grandTotal: booking.grandTotal,
         paddleCount: booking.paddleCount,
         referenceNumber: booking.referenceNumber,
+      });
+    } catch (e) {
+      console.error("Email send failed:", e);
+    }
+  }
+
+  if (status === "REJECTED") {
+    try {
+      await sendRejectionEmail({
+        email: booking.email,
+        customerName: booking.customerName,
+        date: booking.date,
+        startHours: booking.startHours,
+        referenceNumber: booking.referenceNumber,
+        reason: adminNote,
       });
     } catch (e) {
       console.error("Email send failed:", e);
