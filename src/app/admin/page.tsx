@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DatePicker from "@/components/DatePicker";
 import ScheduleGrid from "@/components/ScheduleGrid";
 import AdminPaymentAccounts from "@/components/AdminPaymentAccounts";
+import AdminPricingSettings from "@/components/AdminPricingSettings";
 import AdminManualBookingForm from "@/components/AdminManualBookingForm";
 import PaddleIcon from "@/components/icons/PaddleIcon";
 import { labelForSlot } from "@/lib/pricing";
@@ -44,7 +45,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<"schedule" | "accounts">("schedule");
+  const [tab, setTab] = useState<"schedule" | "accounts" | "pricing">("schedule");
   const [date, setDate] = useState(manilaToday());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,10 +145,15 @@ export default function AdminDashboard() {
           <TabButton active={tab === "accounts"} onClick={() => setTab("accounts")}>
             Payment accounts
           </TabButton>
+          <TabButton active={tab === "pricing"} onClick={() => setTab("pricing")}>
+            Pricing
+          </TabButton>
         </div>
 
         {tab === "accounts" ? (
           <AdminPaymentAccounts />
+        ) : tab === "pricing" ? (
+          <AdminPricingSettings />
         ) : (
           <>
             <div className="rounded-court bg-white border-2 border-court-blue/20 shadow-court p-5 sm:p-6 mb-6">
@@ -217,7 +223,7 @@ export default function AdminDashboard() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {b.proofOfPaymentUrl && (
-                        <a
+                        
                           href={b.proofOfPaymentUrl}
                           target="_blank"
                           rel="noreferrer"
