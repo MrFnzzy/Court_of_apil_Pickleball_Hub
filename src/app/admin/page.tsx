@@ -70,12 +70,15 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [loadBookings]);
 
-  async function updateStatus(id: string, status: string) {
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  async function updateStatus(id: string, status: string, adminNote?: string) {
     setActionError(null);
     const res = await fetch(`/api/admin/bookings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, adminNote }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -84,6 +87,19 @@ export default function AdminDashboard() {
     }
     await loadBookings();
     setGridKey((k) => k + 1);
+  }
+
+  function openRejectModal(id: string) {
+    setRejectReason("");
+    setRejectingId(id);
+  }
+
+  async function confirmReject() {
+    if (!rejectingId) return;
+    const reason = rejectReason.trim() || "We couldn't verify your payment details.";
+    await updateStatus(rejectingId, "REJECTED", reason);
+    setRejectingId(null);
+    setRejectReason("");
   }
 
   async function removeBooking(id: string) {
@@ -201,7 +217,7 @@ export default function AdminDashboard() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {b.proofOfPaymentUrl && (
-                        <a
+                        
                           href={b.proofOfPaymentUrl}
                           target="_blank"
                           rel="noreferrer"
@@ -212,6 +228,12 @@ export default function AdminDashboard() {
                       )}
                       <span className="text-xs text-court-ink/40">Amount sent: ₱{b.amountSent}</span>
                     </div>
+
+                    {b.status === "REJECTED" && b.adminNote && (
+                      <p className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                        Reason sent to customer: {b.adminNote}
+                      </p>
+                    )}
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       {b.status !== "CONFIRMED" && (
@@ -224,7 +246,7 @@ export default function AdminDashboard() {
                       )}
                       {b.status !== "REJECTED" && (
                         <button
-                          onClick={() => updateStatus(b.id, "REJECTED")}
+                          onClick={() => openRejectModal(b.id)}
                           className="focus-ring rounded-full bg-red-100 text-red-700 border border-red-300 px-4 py-1.5 text-sm font-semibold hover:bg-red-200"
                         >
                           Reject
@@ -252,6 +274,62 @@ export default function AdminDashboard() {
           </>
         )}
       </div>
+
+      {rejectingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-court bg-white border-2 border-court-ink/10 shadow-court p-6">
+            <h3 className="font-display font-700 text-lg text-court-ink mb-2">Reject booking</h3>
+            <p className="text-sm text-court-ink/60 mb-4">
+              This message will be emailed to the customer explaining why their booking wasn&apos;t confirmed.
+            </p>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setRejectReason(
+                    "We couldn't verify the proof of payment you submitted. Please make sure the screenshot clearly shows the transaction details."
+                  )
+                }
+                className="focus-ring text-xs font-semibold rounded-full border border-court-ink/15 px-3 py-1.5 hover:border-court-orange/40"
+              >
+                Couldn&apos;t verify payment
+              </button>
+              <button
+                type="button"
+                onClick={() => setRejectReason("We did not receive the payment for this booking.")}
+                className="focus-ring text-xs font-semibold rounded-full border border-court-ink/15 px-3 py-1.5 hover:border-court-orange/40"
+              >
+                Payment not received
+              </button>
+            </div>
+
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={4}
+              placeholder="Write what happened..."
+              className="w-full rounded-xl border-2 border-court-ink/15 px-3 py-2 text-sm focus-ring"
+              autoFocus
+            />
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setRejectingId(null)}
+                className="focus-ring rounded-full bg-white text-court-ink/70 border border-court-ink/15 px-4 py-2 text-sm font-semibold hover:bg-court-ink/5"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReject}
+                className="focus-ring rounded-full bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700"
+              >
+                Reject & notify customer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
