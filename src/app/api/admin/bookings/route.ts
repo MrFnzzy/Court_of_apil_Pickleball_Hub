@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthed } from "@/lib/auth";
 import { priceForSlot, rentalPrice } from "@/lib/pricing";
+import { getPricingSettings } from "@/lib/pricingSettings";
 import type { Prisma as PrismaNS } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -40,8 +41,9 @@ export async function POST(req: NextRequest) {
     }
 
     const date = new Date(dateStr + "T00:00:00.000Z");
-    const courtTotal = hours.reduce((sum: number, h: number) => sum + priceForSlot(date, h), 0);
-    const rentalTotal = rentalPrice(paddleCount);
+    const pricing = await getPricingSettings();
+    const courtTotal = hours.reduce((sum: number, h: number) => sum + priceForSlot(date, h, pricing), 0);
+    const rentalTotal = rentalPrice(paddleCount, pricing);
 
     const booking = await prisma.$transaction(async (tx: PrismaNS.TransactionClient) => {
       const created = await tx.booking.create({
