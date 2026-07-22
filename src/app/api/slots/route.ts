@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ALL_HOURS, priceForSlot } from "@/lib/pricing";
+import { getPricingSettings } from "@/lib/pricingSettings";
 
 // GET /api/slots?date=YYYY-MM-DD
 // Returns the full 24-hour grid for the given date with status per hour:
@@ -20,6 +21,8 @@ export async function GET(req: NextRequest) {
     where: { date },
     include: { booking: { select: { status: true, customerName: true, contactNumber: true } } },
   });
+
+  const pricing = await getPricingSettings();
 
   const now = new Date();
   const isToday = now.toISOString().slice(0, 10) === dateParam;
@@ -44,7 +47,7 @@ export async function GET(req: NextRequest) {
     return {
       hour,
       status,
-      price: priceForSlot(date, hour),
+      price: priceForSlot(date, hour, pricing),
     };
   });
 
