@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Account = {
   id: string;
@@ -26,18 +26,44 @@ export default function PaymentMethodPicker({
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/payment-accounts")
-      .then((r) => r.json())
+  const loadAccounts = useCallback(() => {
+    setLoading(true);
+    setLoadError(false);
+    fetch("/api/payment-accounts", { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error("Request failed");
+        return r.json();
+      })
       .then((d) => setAccounts(d.accounts || []))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadAccounts();
+  }, [loadAccounts]);
 
   const selectedAccount = accounts.find((a) => a.method === value);
 
   if (loading) {
     return <div className="h-24 rounded-xl bg-court-ink/5 animate-pulse" />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 text-center">
+        <p className="text-sm text-red-700 mb-2">Couldn&apos;t load payment options. Please check your connection.</p>
+        <button
+          type="button"
+          onClick={loadAccounts}
+          className="focus-ring rounded-full bg-red-600 text-white px-4 py-1.5 text-sm font-semibold hover:bg-red-700"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   return (
