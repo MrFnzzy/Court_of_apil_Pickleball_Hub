@@ -25,3 +25,4 @@ enum PaymentMethod {
 // One row per booking "order" — can cover multiple hourly slots in one day
 model Booking {
   id              String
+}
