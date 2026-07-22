@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { priceForSlot, rentalPrice } from "@/lib/pricing";
+import { getPricingSettings } from "@/lib/pricingSettings";
 import type { Prisma as PrismaNS } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     const date = new Date(dateStr + "T00:00:00.000Z");
+    const pricing = await getPricingSettings();
 
     // Reject past dates/hours
     const now = new Date();
@@ -64,8 +66,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const courtTotal = hours.reduce((sum: number, h: number) => sum + priceForSlot(date, h), 0);
-    const rentalTotal = rentalPrice(paddleCount);
+    const courtTotal = hours.reduce((sum: number, h: number) => sum + priceForSlot(date, h, pricing), 0);
+    const rentalTotal = rentalPrice(paddleCount, pricing);
     const grandTotal = courtTotal + rentalTotal;
 
     // ---- Race-safe booking: unique (date,hour) constraint on Slot guarantees
