@@ -81,3 +81,16 @@ model PaymentAccount {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
+
+// Admin-managed homepage hero slideshow images
+model HeroSlide {
+  id        String   @id @default(uuid())
+  imageUrl  String
+  duration  Int      @default(5000) // how long this slide shows, in milliseconds
+  order     Int      @default(0)    // display order, lowest first
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+}
