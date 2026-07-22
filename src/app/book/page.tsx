@@ -1,96 +1,237 @@
-// Court of Apil Pickleball Hub — Database schema
-generator client {
-  provider = "prisma-client-js"
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
+import DatePicker from "@/components/DatePicker";
+import ScheduleGrid from "@/components/ScheduleGrid";
+import PaymentMethodPicker from "@/components/PaymentMethodPicker";
+import { labelForSlot, priceForSlot, rentalPrice, rentalPackages, DEFAULT_PRICING, PricingSettings } from "@/lib/pricing";
+
+function manilaToday(): string {
+  const now = new Date();
+  const manila = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  return manila.toISOString().slice(0, 10);
 }
 
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
+export default function BookPage() {
+  const router = useRouter();
+  const [date, setDate] = useState(manilaToday());
+  const [selectedHours, setSelectedHours] = useState<number[]>([]);
+  const [paddleCount, setPaddleCount] = useState<0 | 1 | 2>(0);
 
-enum BookingStatus {
-  PENDING   // awaiting admin approval of proof of payment
-  CONFIRMED // approved, confirmation email sent
-  REJECTED  // proof of payment rejected / invalid
-  CANCELLED // cancelled by admin
-}
+  const [customerName, setCustomerName] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+  const [email, setEmail] = useState("");
 
-enum PaymentMethod {
-  GCASH
-  MAYA
-  BPI
-}
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+  const [referenceNumber, setReferenceNumber] = useState("");
+  const [amountSent, setAmountSent] = useState("");
+  const [file, setFile] = useState<File | null>(null);
 
-// One row per booking "order" — can cover multiple hourly slots in one day
-model Booking {
-  id              String        @id @default(uuid())
-  customerName    String
-  contactNumber   String // 11-digit numeric, validated in app layer
-  email           String
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  date            DateTime      // the calendar date being booked (stored at 00:00 UTC)
-  startHours      Int[]         // list of starting hours (0-23) booked, e.g. [14,15] = 2PM & 3PM
+  const [pricing, setPricing] = useState<PricingSettings>(DEFAULT_PRICING);
 
-  courtTotal      Float         // sum of per-slot court prices
-  paddleCount     Int           @default(0) // 0, 1, or 2 (rental package)
-  rentalTotal     Float         @default(0)
-  grandTotal      Float
+  useEffect(() => {
+    fetch("/api/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings) setPricing(d.settings);
+      })
+      .catch(() => {});
+  }, []);
 
-  paymentMethod   PaymentMethod
-  referenceNumber String
-  amountSent      Float
-  proofOfPaymentUrl String
+  const dateObj = useMemo(() => new Date(date + "T00:00:00.000Z"), [date]);
 
-  status          BookingStatus @default(PENDING)
-  adminNote       String?
+  const courtTotal = useMemo(
+    () => selectedHours.reduce((sum, h) => sum + priceForSlot(dateObj, h, pricing), 0),
+    [selectedHours, dateObj, pricing]
+  );
+  const rentalTotal = rentalPrice(paddleCount, pricing);
+  const grandTotal = courtTotal + rentalTotal;
+  const packages = rentalPackages(pricing);
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  function toggleHour(hour: number) {
+    setSelectedHours((prev) =>
+      prev.includes(hour) ? prev.filter((h) => h !== hour) : [...prev, hour].sort((a, b) => a - b)
+    );
+  }
 
-  slots           Slot[]
+  function validateClient(): string | null {
+    if (selectedHours.length === 0) return "Please select at least one time slot.";
+    if (!customerName.trim() || customerName.trim().length < 2) return "Please enter your full name.";
+    if (!/^\d{11}$/.test(contactNumber)) return "Contact number must be exactly 11 digits.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Please enter a valid email address.";
+    if (!paymentMethod) return "Please choose a payment method.";
+    if (!referenceNumber.trim()) return "Reference number is required.";
+    if (!/^\d+$/.test(amountSent) || Number(amountSent) <= 0) return "Amount sent must be a valid number.";
+    if (!file) return "Please attach proof of payment.";
+    return null;
+  }
 
-  @@index([date])
-}
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const clientError = validateClient();
+    if (clientError) {
+      setError(clientError);
+      return;
+    }
 
-// One row per individual hour-slot that is held/booked — the UNIQUE constraint
-// on (date, hour) is what guarantees no double-booking can ever occur, even
-// under concurrent requests.
-model Slot {
-  id        String   @id @default(uuid())
-  date      DateTime // date this slot belongs to (00:00 UTC)
-  hour      Int      // 0-23
+    setSubmitting(true);
+    try {
+      // 1. Upload proof of payment
+      const formData = new FormData();
+      formData.append("file", file as File);
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadData.error || "Upload failed.");
 
-  bookingId String
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+      // 2. Create booking
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName,
+          contactNumber,
+          email,
+          date,
+          hours: selectedHours,
+          paddleCount,
+          paymentMethod,
+          referenceNumber,
+          amountSent: Number(amountSent),
+          proofOfPaymentUrl: uploadData.url,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Booking failed.");
+      }
 
-  createdAt DateTime @default(now())
+      setSuccess(true);
+      setSelectedHours([]);
+      setRefreshKey((k) => k + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
-  @@unique([date, hour])
-  @@index([date])
-}
+  if (success) {
+    return (
+      <>
+        <SiteHeader />
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 py-24 text-center">
+          <div className="mx-auto h-16 w-16 rounded-full bg-court-orange/10 flex items-center justify-center mb-6">
+            <svg className="h-8 w-8 text-court-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h1 className="font-display font-700 text-2xl text-court-ink mb-3">Booking request received!</h1>
+          <p className="text-court-ink/70 mb-8">
+            Your slot is marked <strong>pending approval</strong> while we verify your proof of payment.
+            You&apos;ll receive a confirmation email as soon as it&apos;s approved.
+          </p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => setSuccess(false)}
+              className="focus-ring rounded-full bg-court-orange text-white px-6 py-3 font-semibold hover:bg-court-orange-dark"
+            >
+              Book another slot
+            </button>
+          </div>
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
 
-// Admin-managed payment accounts shown to customers at checkout
-model PaymentAccount {
-  id            String        @id @default(uuid())
-  method        PaymentMethod
-  accountName   String
-  accountNumber String
-  qrImageUrl    String?
-  active        Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-}
+  return (
+    <>
+      <SiteHeader />
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+        <h1 className="font-display font-700 text-3xl text-court-ink mb-1">Book your court</h1>
+        <p className="text-court-ink/60 mb-8">Pick a date, select your hours, and reserve your spot.</p>
 
-// Single-row table (id is always "singleton") holding admin-editable pricing.
-// Court pricing: weekday day-time, weekday night-time, weekend (all hours).
-// Rental pricing: 1-paddle and 2-paddle packages.
-model PricingSettings {
-  id                String   @id
-  weekdayDayPrice   Float    @default(200)
-  weekdayNightPrice Float    @default(250)
-  weekendPrice      Float    @default(250)
-  rental1Price      Float    @default(100)
-  rental2Price      Float    @default(150)
-  updatedAt         DateTime @updatedAt
-}
+        <form onSubmit={handleSubmit} className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            {/* Step 1: date + slots */}
+            <section className="rounded-court bg-white border-2 border-court-blue/20 shadow-court p-5 sm:p-6">
+              <h2 className="font-display font-600 text-lg text-court-ink mb-4">1. Choose date &amp; time</h2>
+              <DatePicker
+                value={date}
+                onChange={(d) => {
+                  setDate(d);
+                  setSelectedHours([]);
+                }}
+              />
+              <div className="mt-5" key={refreshKey}>
+                <ScheduleGrid date={date} mode="select" selected={selectedHours} onToggle={toggleHour} />
+              </div>
+            </section>
+
+            {/* Step 2: rentals */}
+            <section className="rounded-court bg-white border-2 border-court-blue/20 shadow-court p-5 sm:p-6">
+              <h2 className="font-display font-600 text-lg text-court-ink mb-4">2. Paddle &amp; ball rental (optional)</h2>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {([0, 1, 2] as const).map((count) => (
+                  <button
+                    type="button"
+                    key={count}
+                    onClick={() => setPaddleCount(count)}
+                    className={`focus-ring rounded-xl border-2 p-4 text-left transition-all ${
+                      paddleCount === count
+                        ? "border-court-orange bg-court-orange/10 shadow-court"
+                        : "border-court-ink/10 hover:border-court-blue-dark/40"
+                    }`}
+                  >
+                    <p className="font-display font-600 text-court-ink">{packages[count].label}</p>
+                    <p className="text-court-orange-dark font-semibold mt-1">
+                      {count === 0 ? "Free" : `+ ₱${packages[count].price}`}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Step 3: customer info */}
+            <section className="rounded-court bg-white border-2 border-court-blue/20 shadow-court p-5 sm:p-6">
+              <h2 className="font-display font-600 text-lg text-court-ink mb-4">3. Your details</h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field label="Full name">
+                  <input
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="input-field"
+                    placeholder="Juan Dela Cruz"
+                    required
+                  />
+                </Field>
+                <Field label="Contact number (11 digits)">
+                  <input
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    className="input-field"
+                    placeholder="09171234567"
+                    inputMode="numeric"
+                    required
+                  />
+                </Field>
+                <Field label="Email address" full>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input-field"
+                    placeholder="you@email.com"
+                    required
+                  />
+                  <p className="text-xs text-court-ink/50 mt-1">Your booking confirmation receipt will be sent here.</p>
