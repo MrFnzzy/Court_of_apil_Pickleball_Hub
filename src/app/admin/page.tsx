@@ -223,7 +223,7 @@ export default function AdminDashboard() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {b.proofOfPaymentUrl && (
-                        
+                        <a
                           href={b.proofOfPaymentUrl}
                           target="_blank"
                           rel="noreferrer"
