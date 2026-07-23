@@ -73,3 +73,19 @@ model PaymentAccount {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @default(now()) @updatedAt
 }
+
+// Homepage hero carousel slides. Not yet wired into any page — this is a
+// minimal placeholder shape (image + optional text/link + ordering) so the
+// API route compiles. Adjust field names freely once the actual slider UI
+// is built, since nothing currently depends on these fields.
+model HeroSlide {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  headline  String?
+  subtext   String?
+  linkUrl   String?
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
