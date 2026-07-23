@@ -18,10 +18,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data: { status, adminNote },
   });
 
-  // Note: availability is derived from Booking.startHours + status directly —
-  // there's no separate Slot table, so no extra cleanup step is needed here.
-  // Once status is REJECTED/CANCELLED, the schedule grid should treat these
-  // hours as free again automatically.
+  // If admin cancels/rejects, free up the slots so others can book them
+  if (status === "REJECTED" || status === "CANCELLED") {
+    await prisma.slot.deleteMany({ where: { bookingId: booking.id } });
+  }
 
   if (status === "CONFIRMED") {
     try {
@@ -62,6 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  await prisma.slot.deleteMany({ where: { bookingId: params.id } });
   await prisma.booking.delete({ where: { id: params.id } });
 
   return NextResponse.json({ success: true });
