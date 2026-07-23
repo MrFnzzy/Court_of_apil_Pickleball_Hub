@@ -60,3 +60,16 @@ model Slot {
 
   @@unique([date, hour])
 }
+
+// Payment accounts (GCash/Maya/BPI) shown to customers at checkout,
+// managed by the admin from the "Payment accounts" tab.
+model PaymentAccount {
+  id            String        @id @default(cuid())
+  method        PaymentMethod
+  accountName   String
+  accountNumber String
+  qrImageUrl    String?
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
+}
