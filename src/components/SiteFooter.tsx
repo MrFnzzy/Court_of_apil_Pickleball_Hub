@@ -29,7 +29,7 @@ export default function SiteFooter() {
         <div>
           <p className="font-semibold text-white mb-2 text-sm uppercase tracking-wide">Hours</p>
           <p className="text-sm text-court-cream/70">Open 24 hours a day, every day.</p>
-          <p className="text-sm text-court-cream/70 mt-1">Court manager login: <a href="/admin/login" className="text-court-blue hover:underline focus-ring">/admin</a></p>
+          
         </div>
       </div>
       <div className="border-t border-white/10 py-4 text-center text-xs text-court-cream/50">
