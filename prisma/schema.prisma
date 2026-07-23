@@ -1,4 +1,5 @@
 // Court of Apil Pickleball Hub — Database schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -41,5 +42,21 @@ model Booking {
   status            BookingStatus @default(PENDING)
   adminNote         String?
   createdAt         DateTime      @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt         DateTime      @default(now()) @updatedAt
+
+  slots             Slot[]
+}
+
+// One row per individual hour claimed on the calendar. Used by the schedule
+// grid to look up per-hour availability and to enforce that the same
+// date+hour can't be double-booked.
+model Slot {
+  id        String   @id @default(cuid())
+  date      DateTime
+  hour      Int
+  bookingId String
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([date, hour])
 }
