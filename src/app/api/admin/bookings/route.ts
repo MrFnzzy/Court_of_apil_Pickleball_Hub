@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdminAuthed } from "@/lib/auth";
 import { priceForSlot, rentalPrice } from "@/lib/pricing";
 import { getPricingSettings } from "@/lib/pricingSettings";
+import type { Prisma as PrismaNS } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,24 +45,32 @@ export async function POST(req: NextRequest) {
     const courtTotal = hours.reduce((sum: number, h: number) => sum + priceForSlot(date, h, pricing), 0);
     const rentalTotal = rentalPrice(paddleCount, pricing);
 
-    const booking = await prisma.booking.create({
-      data: {
-        customerName,
-        contactNumber: contactNumber || "00000000000",
-        email: email || "walkin@courtofapil.local",
-        date,
-        startHours: hours,
-        courtTotal,
-        paddleCount,
-        rentalTotal,
-        grandTotal: courtTotal + rentalTotal,
-        paymentMethod: "GCASH",
-        referenceNumber: "ADMIN-MANUAL",
-        amountSent: courtTotal + rentalTotal,
-        proofOfPaymentUrl: "",
-        status,
-        adminNote: adminNote || "Manually added by admin",
-      },
+    const booking = await prisma.$transaction(async (tx: PrismaNS.TransactionClient) => {
+      const created = await tx.booking.create({
+        data: {
+          customerName,
+          contactNumber: contactNumber || "00000000000",
+          email: email || "walkin@courtofapil.local",
+          date,
+          startHours: hours,
+          courtTotal,
+          paddleCount,
+          rentalTotal,
+          grandTotal: courtTotal + rentalTotal,
+          paymentMethod: "GCASH",
+          referenceNumber: "ADMIN-MANUAL",
+          amountSent: courtTotal + rentalTotal,
+          proofOfPaymentUrl: "",
+          status,
+          adminNote: adminNote || "Manually added by admin",
+        },
+      });
+
+      await tx.slot.createMany({
+        data: hours.map((h: number) => ({ date, hour: h, bookingId: created.id })),
+      });
+
+      return created;
     });
 
     return NextResponse.json({ success: true, booking });
