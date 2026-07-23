@@ -1,0 +1,102 @@
+// Court of Apil Pickleball Hub — Database schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum BookingStatus {
+  PENDING   // awaiting admin approval of proof of payment
+  CONFIRMED // approved, confirmation email sent
+  REJECTED  // proof of payment rejected / invalid
+  CANCELLED // cancelled by admin
+}
+
+enum PaymentMethod {
+  GCASH
+  MAYA
+  BPI
+}
+
+// One row per booking "order" — can cover multiple hourly slots in one day
+model Booking {
+  id                String        @id @default(cuid())
+  customerName      String        @default("")
+  contactNumber     String        @default("")
+  email             String        @default("")
+  date              DateTime      @default(now())
+  startHours        Int[]
+  courtTotal        Int           @default(0)
+  rentalTotal       Int           @default(0)
+  grandTotal        Int           @default(0)
+  paddleCount       Int           @default(0)
+  paymentMethod     PaymentMethod @default(GCASH)
+  referenceNumber   String        @default("")
+  amountSent        Int           @default(0)
+  proofOfPaymentUrl String        @default("")
+  status            BookingStatus @default(PENDING)
+  adminNote         String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now()) @updatedAt
+
+  slots             Slot[]
+}
+
+// One row per individual hour claimed on the calendar. Used by the schedule
+// grid to look up per-hour availability and to enforce that the same
+// date+hour can't be double-booked.
+model Slot {
+  id        String   @id @default(cuid())
+  date      DateTime
+  hour      Int
+  bookingId String
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([date, hour])
+}
+
+// Payment accounts (GCash/Maya/BPI) shown to customers at checkout,
+// managed by the admin from the "Payment accounts" tab.
+model PaymentAccount {
+  id            String        @id @default(cuid())
+  method        PaymentMethod
+  accountName   String
+  accountNumber String
+  qrImageUrl    String?
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
+}
+
+// Homepage hero carousel slides. Not yet wired into any page — this is a
+// minimal placeholder shape (image + optional text/link + ordering) so the
+// API route compiles. Adjust field names freely once the actual slider UI
+// is built, since nothing currently depends on these fields.
+model HeroSlide {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  headline  String?
+  subtext   String?
+  linkUrl   String?
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// Singleton row holding admin-editable court & rental pricing. Always
+// looked up/created via the fixed id "singleton" in getPricingSettings().
+model PricingSettings {
+  id                String @id @default("singleton")
+  weekdayDayPrice   Int    @default(200)
+  weekdayNightPrice Int    @default(250)
+  weekendPrice      Int    @default(250)
+  rental1Price      Int    @default(100)
+  rental2Price      Int    @default(150)
+}
