@@ -235,3 +235,118 @@ export default function BookPage() {
                     required
                   />
                   <p className="text-xs text-court-ink/50 mt-1">Your booking confirmation receipt will be sent here.</p>
+                </Field>
+              </div>
+            </section>
+
+            {/* Step 4: payment */}
+            <section className="rounded-court bg-white border-2 border-court-blue/20 shadow-court p-5 sm:p-6">
+              <h2 className="font-display font-600 text-lg text-court-ink mb-4">4. Payment</h2>
+
+              {/* NOTE: adjust props here to match your actual PaymentMethodPicker signature */}
+              <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+
+              <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                <Field label="Reference number">
+                  <input
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    className="input-field"
+                    placeholder="e.g. 1234567890"
+                    required
+                  />
+                </Field>
+                <Field label="Amount sent (₱)">
+                  <input
+                    value={amountSent}
+                    onChange={(e) => setAmountSent(e.target.value.replace(/\D/g, ""))}
+                    className="input-field"
+                    placeholder={String(grandTotal)}
+                    inputMode="numeric"
+                    required
+                  />
+                </Field>
+                <Field label="Proof of payment (screenshot)" full>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="input-field"
+                    required
+                  />
+                </Field>
+              </div>
+            </section>
+
+            {error && (
+              <div className="rounded-xl border-2 border-red-300 bg-red-50 text-red-700 px-4 py-3 text-sm font-medium">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar: summary */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-6 rounded-court bg-white border-2 border-court-blue/20 shadow-court p-5 sm:p-6">
+              <h2 className="font-display font-600 text-lg text-court-ink mb-4">Summary</h2>
+
+              {selectedHours.length === 0 ? (
+                <p className="text-sm text-court-ink/50 italic">No time slots selected yet.</p>
+              ) : (
+                <ul className="text-sm text-court-ink/70 space-y-1 mb-4">
+                  {selectedHours.map((h) => (
+                    <li key={h} className="flex justify-between">
+                      <span>{labelForSlot(h)}</span>
+                      <span>₱{priceForSlot(dateObj, h, pricing)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="border-t border-court-ink/10 pt-3 space-y-1 text-sm">
+                <div className="flex justify-between text-court-ink/70">
+                  <span>Court total</span>
+                  <span>₱{courtTotal}</span>
+                </div>
+                <div className="flex justify-between text-court-ink/70">
+                  <span>Rental</span>
+                  <span>₱{rentalTotal}</span>
+                </div>
+                <div className="flex justify-between font-display font-700 text-court-ink text-base pt-2">
+                  <span>Total</span>
+                  <span>₱{grandTotal}</span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="focus-ring w-full mt-5 rounded-full bg-court-orange text-white px-6 py-3 font-semibold hover:bg-court-orange-dark disabled:opacity-50"
+              >
+                {submitting ? "Submitting..." : "Reserve my spot"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </main>
+      <SiteFooter />
+    </>
+  );
+}
+
+function Field({
+  label,
+  full,
+  children,
+}: {
+  label: string;
+  full?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={full ? "sm:col-span-2" : ""}>
+      <label className="block text-sm font-medium text-court-ink/70 mb-1.5">{label}</label>
+      {children}
+    </div>
+  );
+}
