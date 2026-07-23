@@ -25,19 +25,19 @@ enum PaymentMethod {
 // One row per booking "order" — can cover multiple hourly slots in one day
 model Booking {
   id                String        @id @default(cuid())
-  customerName      String
-  contactNumber     String
-  email             String
-  date              DateTime
+  customerName      String        @default("")
+  contactNumber     String        @default("")
+  email             String        @default("")
+  date              DateTime      @default(now())
   startHours        Int[]
-  courtTotal        Int
-  rentalTotal       Int
-  grandTotal        Int
-  paddleCount       Int
-  paymentMethod     PaymentMethod
-  referenceNumber   String
-  amountSent        Int
-  proofOfPaymentUrl String
+  courtTotal        Int           @default(0)
+  rentalTotal       Int           @default(0)
+  grandTotal        Int           @default(0)
+  paddleCount       Int           @default(0)
+  paymentMethod     PaymentMethod @default(GCASH)
+  referenceNumber   String        @default("")
+  amountSent        Int           @default(0)
+  proofOfPaymentUrl String        @default("")
   status            BookingStatus @default(PENDING)
   adminNote         String?
   createdAt         DateTime      @default(now())
