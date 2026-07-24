@@ -282,7 +282,7 @@ export default function BookPage() {
                       <p className="font-display font-600 text-lg text-court-ink">
                         {count === 1 ? "1 Paddle" : "2 Paddles"}
                       </p>
-                      <p className="text-sm text-court-ink/60 mb-2">Includes {packages[count].balls} balls</p>
+                      <p className="text-sm text-court-ink/60 mb-2">Includes free {packages[count].balls} balls</p>
                       <p className="font-display font-700 text-2xl text-court-orange">₱{packages[count].price}</p>
                     </button>
                   );
