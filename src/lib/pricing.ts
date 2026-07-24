@@ -55,8 +55,8 @@ export function rentalPackages(
 ): Record<number, { price: number; balls: number; label: string }> {
   return {
     0: { price: 0, balls: 0, label: "No rental" },
-    1: { price: settings.rental1Price, balls: 2, label: "1 paddle (with 2 balls)" },
-    2: { price: settings.rental2Price, balls: 3, label: "2 paddles (with 3 balls)" },
+    1: { price: settings.rental1Price, balls: 2, label: "1 paddle (with free 2 balls)" },
+    2: { price: settings.rental2Price, balls: 3, label: "2 paddles (with free 3 balls)" },
   };
 }
 
