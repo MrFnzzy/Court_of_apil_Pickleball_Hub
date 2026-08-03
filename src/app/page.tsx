@@ -133,7 +133,7 @@ export default async function HomePage() {
               <p className="font-display font-700 text-2xl text-court-orange">₱{balls[3].price}</p>
             </div>
           </div>
-          <p className="text-xs text-court-ink/50 mt-3">Rentals are added directly to your booking total at checkout.</p>
+          
         </section>
 
         {/* PRICING */}
