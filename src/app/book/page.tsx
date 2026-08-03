@@ -722,7 +722,7 @@ export default function BookPage() {
                   <span>₱{rentalTotal}</span>
                 </div>
                 <div className="flex justify-between text-court-ink/70">
-                  <span>Ball rental</span>
+                  <span>Ball</span>
                   <span>₱{ballTotal}</span>
                 </div>
                 <div className="flex justify-between items-baseline font-display font-700 text-court-ink text-base pt-2">
