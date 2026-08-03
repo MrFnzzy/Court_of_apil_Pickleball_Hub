@@ -453,7 +453,7 @@ export default function BookPage() {
               </button>
 
               <div className="mt-8 pt-6 border-t border-court-ink/10">
-                <p className="font-display font-600 text-court-ink mb-3">Ball rental (optional)</p>
+                <p className="font-display font-600 text-court-ink mb-3">Ball (optional)</p>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {([1, 3] as const).map((count) => {
                     const selected = ballCount === count;
@@ -504,7 +504,7 @@ export default function BookPage() {
                     ballCount === 0 ? "text-court-orange-dark" : "text-court-ink/50 hover:text-court-ink/80"
                   }`}
                 >
-                  {ballCount === 0 ? "✓ No ball rental — I have my own balls" : "I have my own balls, skip rental"}
+                  {ballCount === 0 ? "✓ No ball rental — I have my own balls" : "I have my own balls, skip"}
                 </button>
               </div>
             </section>
