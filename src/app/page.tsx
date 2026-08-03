@@ -116,7 +116,7 @@ export default async function HomePage() {
 
         {/* BALL RENTALS */}
         <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
-          <h2 className="font-display font-700 text-2xl text-court-ink mb-6">Ball rentals</h2>
+          <h2 className="font-display font-700 text-2xl text-court-ink mb-6">Ball prices</h2>
           <div className="grid sm:grid-cols-2 gap-5 max-w-2xl">
             <div className="rounded-court border-2 border-court-blue-dark/20 bg-white p-6 shadow-court">
               <BallIcon className="h-8 w-8 text-court-blue-dark mb-3" />
