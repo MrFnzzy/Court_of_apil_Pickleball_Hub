@@ -16,10 +16,10 @@ const FIELDS: { key: keyof Pricing; label: string; hint: string }[] = [
   { key: "weekdayDayPrice", label: "Weekday day rate", hint: "Mon–Fri, 6:00 AM – 4:59 PM (per hour)" },
   { key: "weekdayNightPrice", label: "Weekday night rate", hint: "Mon–Fri, 5:00 PM – 5:59 AM (per hour)" },
   { key: "weekendPrice", label: "Weekend rate", hint: "Sat & Sun, all hours (per hour)" },
-  { key: "rental1Price", label: "1 paddle rental", hint: "Paddle only — balls are rented separately below" },
-  { key: "rental2Price", label: "2 paddle rental", hint: "Paddles only — balls are rented separately below" },
-  { key: "ball1Price", label: "1 ball rental", hint: "Ball rental" },
-  { key: "ball3Price", label: "3 ball rental", hint: "Ball rental" },
+  { key: "rental1Price", label: "1 paddle rental", hint: "will change paddle rent price" },
+  { key: "rental2Price", label: "2 paddle rental", hint: "will change paddle rent price" },
+  { key: "ball1Price", label: "1 ball", hint: "will change ball price" },
+  { key: "ball3Price", label: "3 ball", hint: "will change ball price" },
 ];
 
 export default function AdminPricingSettings() {
