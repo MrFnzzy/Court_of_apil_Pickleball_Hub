@@ -1,0 +1,964 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Fredoka", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  /* Brand color channel triplets ("r g b"), consumed by tailwind.config.ts
+     via rgb(var(--color-x) / <alpha-value>). Overridden at runtime by a
+     <style> tag in layout.tsx generated from the admin's Site Settings, so
+     changing colors in the admin dashboard never requires a code change. */
+  --color-orange: 244 96 54;
+  --color-orange-dark: 214 73 31;
+  --color-orange-light: 255 140 97;
+  --color-blue: 108 212 255;
+  --color-blue-dark: 47 168 217;
+  --color-blue-light: 199 238 255;
+  --color-ink: 23 58 69;
+  --color-cream: 251 248 243;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* iOS: stop the grey flash box on every tap — we draw our own click effect instead */
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: rgb(var(--color-cream));
+  /* Dotted "ball texture" + a very faint pickleball court kitchen-line grid underneath it.
+     Kept subtle (low opacity) so it reads as texture, not decoration. */
+  background-image:
+    radial-gradient(circle, rgb(var(--color-orange) / 0.06) 1.6px, transparent 1.6px),
+    radial-gradient(circle, rgb(var(--color-blue) / 0.08) 1.6px, transparent 1.6px),
+    repeating-linear-gradient(
+      0deg,
+      rgb(var(--color-ink) / 0.025) 0px,
+      rgb(var(--color-ink) / 0.025) 1px,
+      transparent 1px,
+      transparent 96px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgb(var(--color-ink) / 0.025) 0px,
+      rgb(var(--color-ink) / 0.025) 1px,
+      transparent 1px,
+      transparent 96px
+    );
+  background-size: 28px 28px, 28px 28px, 96px 96px, 96px 96px;
+  background-position: 0 0, 14px 14px, 0 0, 0 0;
+  color: rgb(var(--color-ink));
+  position: relative;
+}
+
+/* ---------- Fixed-position sound mute toggle ---------- */
+.fx-mute-toggle {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 50;
+  height: 44px;
+  width: 44px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--color-ink) / 0.85);
+  color: white;
+  box-shadow: 0 8px 24px rgb(var(--color-ink) / 0.25);
+  border: 2px solid rgb(var(--color-cream) / 0.5);
+  transition: transform 0.15s ease;
+}
+.fx-mute-toggle:hover {
+  transform: scale(1.08);
+}
+.fx-mute-toggle:active {
+  transform: scale(0.94);
+}
+
+/* ---------- Calm ambient court-music widget (bottom-left) ---------- */
+.fx-music-widget {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgb(var(--color-ink) / 0.85);
+  border: 2px solid rgb(var(--color-cream) / 0.5);
+  border-radius: 9999px;
+  padding: 5px;
+  box-shadow: 0 8px 24px rgb(var(--color-ink) / 0.25);
+}
+
+.fx-music-toggle {
+  height: 34px;
+  width: 34px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--color-orange));
+  color: white;
+  transition: transform 0.15s ease;
+}
+.fx-music-toggle:hover {
+  transform: scale(1.08);
+}
+.fx-music-toggle:active {
+  transform: scale(0.94);
+}
+
+.fx-music-volume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--color-cream));
+  padding-right: 10px;
+}
+.fx-music-volume input[type="range"] {
+  width: 64px;
+  height: 4px;
+  accent-color: rgb(var(--color-orange));
+  cursor: pointer;
+}
+@media (max-width: 480px) {
+  .fx-music-volume input[type="range"] {
+    width: 44px;
+  }
+}
+
+/* ---------- Click "light wave" ripple ---------- */
+.fx-ripple {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 9999;
+  background: radial-gradient(
+    circle,
+    rgb(var(--color-orange) / 0.55) 0%,
+    rgb(var(--color-blue) / 0.35) 55%,
+    transparent 72%
+  );
+  border: 2px solid rgb(var(--color-orange) / 0.6);
+  animation: fx-ripple-out 650ms cubic-bezier(0.25, 0.8, 0.35, 1) forwards;
+}
+@keyframes fx-ripple-out {
+  0% {
+    transform: scale(0);
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(9);
+    opacity: 0;
+  }
+}
+
+/* ---------- Pressable buttons/links: consistent hover + active feedback ---------- */
+button:not(:disabled),
+a,
+[role="button"] {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover,
+  a:hover,
+  [role="button"]:hover {
+    transform: translateY(-1px) scale(1.015);
+    filter: brightness(1.03);
+  }
+}
+button:not(:disabled):active,
+a:active,
+[role="button"]:active {
+  transform: translateY(0) scale(0.97);
+  filter: brightness(0.98);
+}
+
+/* ---------- Page-visit entrance animation (used by app/template.tsx) ---------- */
+.fx-page-enter {
+  animation: fx-page-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes fx-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    /* transform: none (not translateY(0)) — a non-"none" transform value on
+       this wrapper stays applied after the animation ends (fill-mode: both)
+       and creates a new containing block for any position:fixed descendant
+       (e.g. modals like AdminManualBookingForm), shrinking them to this
+       div's box instead of the real viewport and breaking their scrolling. */
+    transform: none;
+  }
+}
+
+/* Court-line divider, echoes a pickleball kitchen line */
+.kitchen-line {
+  position: relative;
+}
+.kitchen-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgb(var(--color-orange)) 0px,
+    rgb(var(--color-orange)) 14px,
+    transparent 14px,
+    transparent 22px
+  );
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* THE BUG: every form input on /book used className="input-field" but this class
+   never existed anywhere, so all booking-form fields rendered with zero border,
+   zero padding, and the browser default tiny font — most visible on phones, where
+   inputs below 16px also trigger an unwanted auto-zoom on focus in iOS Safari. */
+.input-field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border-width: 2px;
+  border-color: rgb(var(--color-ink) / 0.15);
+  background-color: white;
+  padding: 0.625rem 1rem;
+  font-size: 16px; /* keep >= 16px so iOS Safari never auto-zooms on focus */
+  color: rgb(var(--color-ink));
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input-field::placeholder {
+  color: rgb(var(--color-ink) / 0.35);
+}
+.input-field:focus {
+  outline: none;
+  border-color: rgb(var(--color-orange));
+  box-shadow: 0 0 0 3px rgb(var(--color-orange) / 0.15);
+}
+.input-field[type="file"] {
+  padding: 0.5rem 0.75rem;
+  font-size: 14px;
+}
+
+.focus-ring:focus-visible {
+  outline: 3px solid rgb(var(--color-blue-dark));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* custom scrollbar for schedule grid */
+.scroll-thin::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-orange-light));
+  border-radius: 8px;
+}
+
+/* hides the scrollbar while keeping native swipe/scroll (e.g. admin tab bar) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================
+   Playful date-nav "orb" buttons (prev/next day)
+   ============================================================ */
+.nav-orb {
+  position: relative;
+  height: 3rem;
+  width: 3rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: linear-gradient(145deg, rgb(var(--color-orange)), rgb(var(--color-orange-dark)));
+  color: white;
+  box-shadow: 0 6px 16px rgb(var(--color-orange) / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  border: none;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, filter 0.2s ease;
+}
+.nav-orb svg {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .nav-orb:hover:not(:disabled) {
+    transform: scale(1.12) rotate(-4deg);
+    box-shadow: 0 10px 24px rgb(var(--color-orange) / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  }
+  .nav-orb:hover:not(:disabled) svg.nav-orb-icon-prev {
+    transform: translateX(-2px);
+  }
+  .nav-orb:hover:not(:disabled) svg.nav-orb-icon-next {
+    transform: translateX(2px);
+  }
+}
+.nav-orb:active:not(:disabled) {
+  transform: scale(0.88) rotate(0deg);
+}
+.nav-orb:disabled {
+  background: rgb(var(--color-ink) / 0.12);
+  box-shadow: none;
+  color: rgb(var(--color-ink) / 0.3);
+  cursor: not-allowed;
+}
+
+/* Date label swap-in animation, retriggered by remounting with key={value} */
+.date-pop-in {
+  animation: date-pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes date-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   Schedule grid: staggered slot entrance + selection pop
+   ============================================================ */
+.slot-enter {
+  animation: slot-enter 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes slot-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.slot-selected-pop {
+  animation: slot-selected-pop 340ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes slot-selected-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.slot-check-in {
+  animation: slot-check-in 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes slot-check-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Admin schedule popover */
+.admin-popover {
+  animation: admin-popover-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top center;
+}
+@keyframes admin-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   Booking wizard: step entrance + total pulse
+   ============================================================ */
+.wizard-step {
+  animation: wizard-step-in 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes wizard-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.total-pulse {
+  animation: total-pulse 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes total-pulse {
+  0% {
+    transform: scale(1);
+    color: rgb(var(--color-orange));
+  }
+  45% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.step-badge {
+  transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+@keyframes soft-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-soft-float {
+  animation: soft-float 3.2s ease-in-out infinite;
+}
+
+/* ============================================================
+   Spin the wheel
+   ============================================================ */
+
+/* Ambient glow ring behind the wheel while it waits to be spun */
+@keyframes spin-wheel-glow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.06); }
+}
+.spin-wheel-glow {
+  animation: spin-wheel-glow 2.6s ease-in-out infinite;
+}
+
+/* Rim bulbs chase around the wheel bezel like a carnival prize wheel */
+@keyframes bulb-twinkle {
+  0%, 100% { opacity: 0.28; transform: translate(-50%, -50%) scale(0.75); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+}
+
+/* The wheel gets a brief squash/settle "thud" the instant it stops */
+@keyframes spin-wheel-land {
+  0% { transform: scale(1); }
+  35% { transform: scale(0.975, 1.03); }
+  65% { transform: scale(1.015, 0.99); }
+  100% { transform: scale(1); }
+}
+.spin-wheel-land {
+  animation: spin-wheel-land 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Pointer gives a little nod when the wheel lands */
+@keyframes spin-pointer-bounce {
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  25% { transform: translateX(-50%) rotate(-14deg); }
+  55% { transform: translateX(-50%) rotate(9deg); }
+  80% { transform: translateX(-50%) rotate(-4deg); }
+}
+.spin-pointer-bounce {
+  animation: spin-pointer-bounce 420ms ease-out both;
+  transform-origin: top center;
+}
+
+/* Shimmering sweep across the primary Spin button so it reads as "tap me" */
+@keyframes spin-button-shimmer {
+  0% { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(220%) skewX(-12deg); }
+}
+.spin-button-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.45) 50%, transparent 70%);
+  animation: spin-button-shimmer 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Confetti: each piece falls + tumbles, duration/delay/x-offset randomized inline per-piece */
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(var(--confetti-x, 0), -10vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(calc(var(--confetti-x, 0) + var(--confetti-drift, 0px)), 105vh, 0) rotate(var(--confetti-spin, 480deg));
+    opacity: 0.9;
+  }
+}
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 14px;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.35, 0, 0.65, 1);
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+  pointer-events: none;
+  z-index: 60;
+  border-radius: 2px;
+}
+
+@keyframes prize-code-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.prize-code-pop {
+  animation: prize-code-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin-wheel-glow,
+  .spin-wheel-land,
+  .spin-pointer-bounce,
+  .spin-button-shimmer::after,
+  .confetti-piece,
+  .prize-code-pop {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   Spin the wheel — "night match" arena redesign
+   ============================================================ */
+
+/* Dark stage that houses the wheel: a stadium-under-the-lights moment,
+   so the spin itself is the focal point instead of competing with a
+   side legend or a plain flat card. */
+.spin-arena {
+  border-radius: 2rem;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 85% at 50% -8%, rgba(244, 96, 54, 0.32), transparent 58%),
+    radial-gradient(85% 65% at 4% 108%, rgba(108, 212, 255, 0.2), transparent 55%),
+    linear-gradient(165deg, #0e2530 0%, #123a4c 55%, #0a1e26 100%);
+  box-shadow: 0 30px 60px rgba(8, 24, 31, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Faint pickleball court grid etched into the arena floor */
+.spin-arena__court {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image: repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.05) 0px,
+      rgba(255, 255, 255, 0.05) 1px,
+      transparent 1px,
+      transparent 58px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.05) 0px,
+      rgba(255, 255, 255, 0.05) 1px,
+      transparent 1px,
+      transparent 58px
+    );
+}
+
+/* Slow-drifting floodlight sweep for a "live, under the lights" feel */
+@keyframes spin-arena-sweep {
+  0%,
+  100% {
+    transform: translate(-8%, -6%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(8%, 5%) scale(1.15);
+    opacity: 0.85;
+  }
+}
+.spin-arena__sweep {
+  position: absolute;
+  inset: -25%;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 214, 163, 0.18), transparent 70%);
+  animation: spin-arena-sweep 8s ease-in-out infinite;
+}
+
+/* Faint net-shadow band across the top of the arena, like stadium netting
+   catching the floodlights overhead */
+.spin-arena__net {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 40%;
+  border-radius: 2rem 2rem 0 0;
+  pointer-events: none;
+  opacity: 0.14;
+  background-image: repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.5) 0px,
+      rgba(255, 255, 255, 0.5) 1px,
+      transparent 1px,
+      transparent 13px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.5) 0px,
+      rgba(255, 255, 255, 0.5) 1px,
+      transparent 1px,
+      transparent 13px
+    );
+  mask-image: linear-gradient(to bottom, black, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent);
+}
+
+/* Result voucher: a clean "ticket" card with a stitched perforation divider
+   between the headline and the discount code, instead of a plain box. */
+.spin-ticket {
+  border-radius: 1.75rem;
+  background: white;
+}
+.spin-ticket--won {
+  background: linear-gradient(160deg, #fff 0%, rgba(244, 96, 54, 0.05) 100%);
+  border: 2px solid rgba(244, 96, 54, 0.25);
+}
+.spin-ticket--won::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: linear-gradient(90deg, #f46036, #6cd4ff, #f46036);
+}
+.spin-ticket--lost {
+  background: white;
+  border: 2px solid rgba(23, 58, 69, 0.1);
+}
+.spin-ticket--lost::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: linear-gradient(90deg, rgba(23, 58, 69, 0.22), rgba(108, 212, 255, 0.35), rgba(23, 58, 69, 0.22));
+}
+
+.spin-ticket__divider {
+  position: relative;
+  height: 0;
+  border-top: 2px dashed rgba(23, 58, 69, 0.14);
+}
+.spin-ticket__divider-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  width: 26px;
+  border-radius: 9999px;
+  background: rgb(var(--color-orange));
+  box-shadow: 0 2px 8px rgba(244, 96, 54, 0.35), 0 0 0 4px white;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin-arena__sweep {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   Promo code success animation
+   Everything here animates only transform/opacity (GPU-friendly),
+   is pointer-events: none, and is skipped entirely by the component
+   when prefers-reduced-motion is set — the rules below are a
+   defensive backup for that same preference.
+   ============================================================ */
+
+.promo-fx-root {
+  overflow: hidden;
+}
+@keyframes promo-fx-fadeout {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.promo-fx-fadeout {
+  animation: promo-fx-fadeout 380ms ease-out both;
+}
+@keyframes promo-fx-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-3px, 1px, 0); }
+  40% { transform: translate3d(3px, -1px, 0); }
+  60% { transform: translate3d(-2px, 1px, 0); }
+  80% { transform: translate3d(2px, 0, 0); }
+}
+.promo-fx-shake {
+  animation: promo-fx-shake 260ms ease-in-out both;
+}
+
+/* Phase 1: activation glow blooming from the promo box */
+@keyframes promo-fx-activate-glow {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+  35% { opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
+}
+.promo-fx-activate-glow {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(225, 29, 42, 0.55), rgba(225, 29, 42, 0) 70%);
+  animation: promo-fx-activate-glow 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The orb: forms with a jelly wiggle, then flies to the total */
+.promo-fx-orb-wrap {
+  position: absolute;
+  width: 0;
+  height: 0;
+  will-change: transform;
+}
+@keyframes promo-fx-orb-flight {
+  0% { transform: translate3d(0, 0, 0) scale(0.9); }
+  55% {
+    transform: translate3d(calc(var(--dx) * 0.42), calc(var(--dy) * 0.55 - 70px), 0) scale(1.05);
+  }
+  100% { transform: translate3d(var(--dx), var(--dy), 0) scale(1.1); }
+}
+.promo-fx-orb-flight {
+  animation: promo-fx-orb-flight 1250ms cubic-bezier(0.33, 0, 0.2, 1) forwards;
+}
+.promo-fx-orb {
+  position: absolute;
+  left: -11px;
+  top: -11px;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 30%, #ff8a7a, #e11d2a 55%, #8f0d17 100%);
+  box-shadow: 0 0 16px 4px rgba(225, 29, 42, 0.65), 0 0 30px 10px rgba(225, 29, 42, 0.28);
+}
+@keyframes promo-fx-orb-wiggle {
+  0% { transform: scale(0.2, 0.2); }
+  30% { transform: scale(1.25, 0.75); }
+  50% { transform: scale(0.85, 1.18); }
+  70% { transform: scale(1.08, 0.94); }
+  100% { transform: scale(1, 1); }
+}
+.promo-fx-orb-wiggle {
+  animation: promo-fx-orb-wiggle 620ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes promo-fx-orb-hover {
+  0%, 100% { transform: scale(1, 1) translateY(0); }
+  50% { transform: scale(1.08, 0.94) translateY(-3px); }
+}
+.promo-fx-orb-hover {
+  animation: promo-fx-orb-hover 900ms ease-in-out infinite;
+}
+
+.promo-fx-hover-glow {
+  position: absolute;
+  left: -26px;
+  top: -26px;
+  width: 52px;
+  height: 52px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(225, 29, 42, 0.4), transparent 72%);
+  animation: promo-fx-orb-hover 900ms ease-in-out infinite;
+}
+
+/* The dagger: orb compresses/elongates into a blade, pauses, then slashes */
+.promo-fx-dagger {
+  position: absolute;
+  left: -5px;
+  top: -22px;
+  width: 10px;
+  height: 44px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #fff 0%, #ff5b57 18%, #e11d2a 55%, #7a0b13 100%);
+  box-shadow: 0 0 14px 3px rgba(225, 29, 42, 0.6);
+  transform-origin: center;
+}
+@keyframes promo-fx-dagger-form {
+  0% { transform: rotate(0deg) scaleY(0.35) scaleX(2.2); opacity: 0.6; }
+  45% { transform: rotate(-18deg) scaleY(1.1) scaleX(0.85); opacity: 1; }
+  70% { transform: rotate(-14deg) scaleY(0.96) scaleX(1.05); }
+  100% { transform: rotate(-16deg) scaleY(1) scaleX(1); }
+}
+.promo-fx-dagger-form {
+  animation: promo-fx-dagger-form 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes promo-fx-dagger-slash {
+  0% { transform: rotate(-16deg) translate3d(0, 0, 0); filter: blur(0px); }
+  35% {
+    transform: rotate(18deg) translate3d(54px, 40px, 0);
+    filter: blur(2.5px);
+  }
+  60% { transform: rotate(20deg) translate3d(58px, 44px, 0); filter: blur(0.5px); }
+  100% { transform: rotate(20deg) translate3d(58px, 44px, 0); opacity: 0; }
+}
+.promo-fx-dagger-slash {
+  animation: promo-fx-dagger-slash 480ms cubic-bezier(0.55, 0, 0.85, 0.3) both;
+}
+
+/* Impact flash + sparks at the moment of the slash */
+@keyframes promo-fx-flash {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  30% { opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+.promo-fx-flash {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(225, 29, 42, 0.5) 55%, transparent 75%);
+  animation: promo-fx-flash 380ms ease-out both;
+}
+@keyframes promo-fx-spark {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateX(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateX(var(--spark-dist)) scale(0.3);
+    opacity: 0;
+  }
+}
+.promo-fx-spark {
+  position: absolute;
+  border-radius: 9999px;
+  background: #ff5b4d;
+  box-shadow: 0 0 6px 1px rgba(255, 91, 77, 0.8);
+  animation: promo-fx-spark 420ms cubic-bezier(0.2, 0.8, 0.4, 1) both;
+}
+
+/* The ghost total that masks the real number during the slice.
+   Each ghost span fills the wrap via inset:0 + its own flex centering,
+   so its resting position never depends on `transform` — that property
+   is left free for the phase keyframes (lift/split/bounce) to animate
+   as a pure offset from rest, with nothing to fight over. */
+.promo-fx-ghost-wrap {
+  position: absolute;
+}
+.promo-fx-ghost-total {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: rgb(var(--color-orange));
+  white-space: nowrap;
+}
+@keyframes promo-fx-ghost-lift {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(6px, -10px) scale(1.14); }
+}
+.promo-fx-ghost-lift {
+  animation: promo-fx-ghost-lift 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes promo-fx-ghost-hit {
+  0% { filter: brightness(1); }
+  15% { filter: brightness(2.4) drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)); }
+  100% { filter: brightness(1); opacity: 0; }
+}
+.promo-fx-ghost-hit {
+  animation: promo-fx-ghost-hit 420ms ease-out both;
+}
+@keyframes promo-fx-ghost-half-a {
+  0% { clip-path: inset(0 50% 0 0); transform: translate(6px, -10px) scale(1.14) rotate(0deg); opacity: 1; }
+  100% { clip-path: inset(0 50% 0 0); transform: translate(-16px, -26px) scale(1.1) rotate(-10deg); opacity: 0; }
+}
+.promo-fx-ghost-half-a {
+  animation: promo-fx-ghost-half-a 620ms cubic-bezier(0.33, 0, 0.4, 1) both;
+}
+@keyframes promo-fx-ghost-half-b {
+  0% { clip-path: inset(0 0 0 50%); transform: translate(6px, -10px) scale(1.14) rotate(0deg); opacity: 1; }
+  100% { clip-path: inset(0 0 0 50%); transform: translate(24px, 10px) scale(1.1) rotate(8deg); opacity: 0; }
+}
+.promo-fx-ghost-half-b {
+  animation: promo-fx-ghost-half-b 620ms cubic-bezier(0.33, 0, 0.4, 1) both;
+}
+@keyframes promo-fx-discount-in {
+  0% { opacity: 0; filter: blur(6px); transform: scale(0.92); }
+  100% { opacity: 1; filter: blur(0px); transform: scale(1); }
+}
+.promo-fx-ghost-discount {
+  color: #2e9e52;
+  animation: promo-fx-discount-in 700ms ease-out both;
+}
+@keyframes promo-fx-discount-settle {
+  0% { transform: scale(1); }
+  55% { transform: scale(1.16); }
+  75% { transform: scale(0.96); }
+  100% { transform: scale(1); color: rgb(var(--color-orange)); }
+}
+.promo-fx-ghost-sharp {
+  animation: promo-fx-discount-settle 620ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes promo-fx-sparkle {
+  0% { transform: rotate(var(--spark-angle)) translateX(0) scale(0); opacity: 1; }
+  60% { opacity: 1; }
+  100% { transform: rotate(var(--spark-angle)) translateX(var(--spark-dist)) scale(1); opacity: 0; }
+}
+.promo-fx-sparkle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: #ffd166;
+  box-shadow: 0 0 6px 1px rgba(255, 209, 102, 0.9);
+  animation: promo-fx-sparkle 640ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-fx-root * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
