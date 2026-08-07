@@ -728,10 +728,18 @@ a:active,
    in sync with the rest of the site's "energy" accent.
    ============================================================ */
 
+/* z-index is pushed to the top of the practical range (instead of the
+   original 80-84 band) and .promofx-layer gets its own stacking context
+   via `isolation: isolate`, so nothing else added to the page later —
+   modals, admin dialogs, etc. — can ever end up painted on top of or
+   interleaved with this sequence. This overlay is portaled straight onto
+   <body> (see ModalPortal), so it never inherits a transformed/`overflow:
+   hidden` ancestor's containing block or clipping either. */
 .promofx-layer {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 2147483000;
+  isolation: isolate;
   pointer-events: none;
   overflow: visible;
 }
@@ -739,14 +747,14 @@ a:active,
 .promofx-canvas {
   position: fixed;
   inset: 0;
-  z-index: 81;
+  z-index: 1;
   pointer-events: none;
 }
 
 .promofx-flash-v3 {
   position: fixed;
   inset: 0;
-  z-index: 82;
+  z-index: 2;
   pointer-events: none;
   opacity: 0;
   mix-blend-mode: plus-lighter;
@@ -760,7 +768,7 @@ a:active,
 
 .promofx-target-v3 {
   position: fixed;
-  z-index: 83;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -788,7 +796,7 @@ a:active,
 
 .promofx-onomatopoeia-v3 {
   position: fixed;
-  z-index: 84;
+  z-index: 4;
   pointer-events: none;
   font-family: var(--font-display);
   font-weight: 700;
@@ -806,7 +814,7 @@ a:active,
 
 .promofx-stamp-v3 {
   position: fixed;
-  z-index: 84;
+  z-index: 4;
   pointer-events: none;
   opacity: 0;
   width: 60px;
