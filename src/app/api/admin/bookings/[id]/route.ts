@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthed } from "@/lib/auth";
 import { sendConfirmationEmail, sendRejectionEmail, sendRescheduleEmail } from "@/lib/email";
-import { priceForSlot } from "@/lib/pricing";
+import { priceForSlot, rentalPrice, ballPrice } from "@/lib/pricing";
 import { getPricingSettings } from "@/lib/pricingSettings";
 import type { Prisma as PrismaNS } from "@prisma/client";
 
@@ -10,7 +10,106 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { status, adminNote, date: dateStr, hours } = body;
+  const { status, adminNote, date: dateStr, hours, mode } = body;
+
+  // Full edit branch — admin editing any field of an existing booking
+  // (customer details, slots, rentals, status, and the free/paid tags)
+  // from the edit form. Distinct from the plain reschedule branch below,
+  // which only ever touches date/hours and is used by the lighter-weight
+  // "Reschedule" modal.
+  if (mode === "edit") {
+    const {
+      customerName,
+      contactNumber,
+      email,
+      paddleCount = 0,
+      ballCount = 0,
+      isFree = false,
+      isPaid = true,
+      status: editStatus,
+      adminNote: editAdminNote,
+    } = body;
+
+    if (typeof customerName !== "string" || !customerName.trim()) {
+      return NextResponse.json({ error: "Customer name is required." }, { status: 400 });
+    }
+    if (typeof dateStr !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return NextResponse.json({ error: "A valid date is required." }, { status: 400 });
+    }
+    if (!Array.isArray(hours) || hours.length === 0 || !hours.every((h: unknown) => typeof h === "number" && Number.isInteger(h) && h >= 0 && h <= 23)) {
+      return NextResponse.json({ error: "Select at least one valid time slot." }, { status: 400 });
+    }
+    if (editStatus !== undefined && !["PENDING", "CONFIRMED", "REJECTED", "CANCELLED"].includes(editStatus)) {
+      return NextResponse.json({ error: "Invalid status." }, { status: 400 });
+    }
+
+    const existing = await prisma.booking.findUnique({ where: { id: params.id } });
+    if (!existing) return NextResponse.json({ error: "Booking not found." }, { status: 404 });
+
+    const newDate = new Date(dateStr + "T00:00:00.000Z");
+    const pricing = await getPricingSettings();
+    const courtTotal = hours.reduce((sum: number, h: number) => sum + priceForSlot(newDate, h, pricing), 0);
+    const rentalTotal = rentalPrice(paddleCount, pricing);
+    const ballTotal = ballPrice(ballCount, pricing);
+    const subtotal = courtTotal + rentalTotal + ballTotal;
+    // Re-derive the discount peso amount from the (unchanged) percentage
+    // against the new subtotal, same approach the reschedule branch uses.
+    const discountAmount = existing.discountPercent > 0
+      ? Math.min(subtotal, Math.round((subtotal * existing.discountPercent) / 100))
+      : existing.discountAmount;
+    const grandTotal = subtotal - discountAmount;
+
+    const hoursChanged =
+      dateStr !== existing.date.toISOString().slice(0, 10) ||
+      hours.length !== existing.startHours.length ||
+      hours.slice().sort((a: number, b: number) => a - b).join(",") !== existing.startHours.slice().sort((a: number, b: number) => a - b).join(",");
+
+    try {
+      const updated = await prisma.$transaction(async (tx: PrismaNS.TransactionClient) => {
+        if (hoursChanged) {
+          await tx.slot.deleteMany({ where: { bookingId: params.id } });
+          await tx.slot.createMany({
+            data: hours.map((h: number) => ({ date: newDate, hour: h, bookingId: params.id })),
+          });
+        }
+        return tx.booking.update({
+          where: { id: params.id },
+          data: {
+            customerName: customerName.trim(),
+            contactNumber: contactNumber || existing.contactNumber,
+            email: email || existing.email,
+            date: newDate,
+            startHours: hours,
+            courtTotal,
+            paddleCount,
+            rentalTotal,
+            ballCount,
+            ballTotal,
+            discountAmount,
+            grandTotal,
+            isFree: !!isFree,
+            isPaid: isFree ? true : !!isPaid,
+            ...(editStatus !== undefined ? { status: editStatus } : {}),
+            ...(editAdminNote !== undefined ? { adminNote: editAdminNote } : {}),
+          },
+        });
+      });
+
+      // Freeing up slots on the way out to REJECTED/CANCELLED mirrors the
+      // plain status-update branch further down.
+      if (editStatus === "REJECTED" || editStatus === "CANCELLED") {
+        await prisma.slot.deleteMany({ where: { bookingId: updated.id } });
+      }
+
+      return NextResponse.json({ success: true, booking: updated });
+    } catch (err: any) {
+      if (err?.code === "P2002") {
+        return NextResponse.json({ error: "One of those slots is already booked." }, { status: 409 });
+      }
+      console.error("Booking edit failed:", err);
+      return NextResponse.json({ error: "Failed to save changes." }, { status: 500 });
+    }
+  }
 
   // Reschedule branch — admin moving a PENDING (still awaiting verification)
   // or CONFIRMED (already paid) booking to a different date/time. Any other

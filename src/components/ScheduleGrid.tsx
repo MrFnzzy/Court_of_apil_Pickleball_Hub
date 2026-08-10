@@ -58,6 +58,7 @@ export default function ScheduleGrid({
   autoRefresh = true,
   admin = false,
   onAvailabilityChange,
+  excludeBookingId,
 }: {
   date: string;
   mode?: "view" | "select";
@@ -72,6 +73,9 @@ export default function ScheduleGrid({
    * whether at least one slot is still "available". Lets a parent (e.g. the
    * booking wizard) react when a given day turns out to be fully booked. */
   onAvailabilityChange?: (hasAvailable: boolean, date: string) => void;
+  /** Admin editing an existing booking: that booking's own slots report as
+   * "available" instead of booked/pending, so they stay pickable. */
+  excludeBookingId?: string;
 }) {
   const [grid, setGrid] = useState<SlotInfo[] | null>(null);
   const [liveHour, setLiveHour] = useState<number | null>(null);
@@ -84,7 +88,9 @@ export default function ScheduleGrid({
 
   const fetchGrid = useCallback(async () => {
     try {
-      const url = admin ? `/api/slots?date=${date}&admin=1` : `/api/slots?date=${date}`;
+      const url = admin
+        ? `/api/slots?date=${date}&admin=1${excludeBookingId ? `&excludeBookingId=${excludeBookingId}` : ""}`
+        : `/api/slots?date=${date}`;
       const res = await fetch(url, { cache: "no-store" });
       const data = await res.json();
       setGrid(data.grid);
@@ -95,7 +101,7 @@ export default function ScheduleGrid({
     } finally {
       setLoading(false);
     }
-  }, [date, admin]);
+  }, [date, admin, excludeBookingId]);
 
   useEffect(() => {
     setLoading(true);

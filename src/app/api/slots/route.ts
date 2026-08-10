@@ -32,6 +32,12 @@ export async function GET(req: NextRequest) {
   const wantsAdminDetail = req.nextUrl.searchParams.get("admin") === "1";
   const isAdmin = wantsAdminDetail && (await isAdminAuthed());
 
+  // When editing an existing booking, its own currently-held slots would
+  // otherwise show up "booked"/"pending" and be unpickable — this lets the
+  // admin edit form report them as available instead, so the admin can
+  // keep or re-toggle the same hours as part of the same booking.
+  const excludeBookingId = isAdmin ? req.nextUrl.searchParams.get("excludeBookingId") : null;
+
   // NOTE: pending bookings are intentionally never auto-rejected here, even
   // once their reserved time has passed — they still need a human admin
   // decision either way (see the "past" cutoff below, which only affects
@@ -95,6 +101,9 @@ export async function GET(req: NextRequest) {
 
     if (slot) {
       status = slot.booking.status === "PENDING" ? "pending" : slot.booking.status === "CONFIRMED" ? "booked" : "available";
+    }
+    if (excludeBookingId && slot && slot.bookingId === excludeBookingId) {
+      status = "available";
     }
     if (status === "available" || status === "pending") {
       if (isPast) {

@@ -50,6 +50,13 @@ model Booking {
   amountSent        Int           @default(0)
   proofOfPaymentUrl String        @default("")
   status            BookingStatus @default(PENDING)
+  // Admin-only tags, independent of `status`. A booking can be CONFIRMED
+  // and still be `isFree` (comped/courtesy booking — no charge) or not
+  // `isPaid` (payment hasn't actually been collected yet, e.g. a walk-in
+  // who'll pay later). Both default to the "normal paying customer" case
+  // so existing rows and ordinary online bookings are unaffected.
+  isFree            Boolean       @default(false)
+  isPaid            Boolean       @default(true)
   adminNote         String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @default(now()) @updatedAt

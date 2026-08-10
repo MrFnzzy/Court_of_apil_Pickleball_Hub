@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ScheduleGrid from "./ScheduleGrid";
 import DatePicker from "./DatePicker";
 import ModalPortal from "./ModalPortal";
@@ -17,10 +17,27 @@ import {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+export type EditableBooking = {
+  id: string;
+  date: string;
+  startHours: number[];
+  customerName: string;
+  contactNumber: string;
+  email: string;
+  paddleCount: number;
+  ballCount: number;
+  status: "PENDING" | "CONFIRMED" | "REJECTED" | "CANCELLED";
+  adminNote: string | null;
+  isFree: boolean;
+  isPaid: boolean;
+};
+
 export default function AdminManualBookingForm({
   date,
   onClose,
   onCreated,
+  editBooking,
+  onSaved,
 }: {
   /** Date the dashboard was viewing when "Add manual booking" was pressed —
    * used as the modal's starting date, but the admin can change it inside
@@ -30,16 +47,26 @@ export default function AdminManualBookingForm({
   /** Fired after a successful save with the date the booking was made for,
    * so the dashboard can jump its own date filter to match. */
   onCreated: (bookingDate: string) => void;
+  /** When set, the form opens in edit mode for this existing booking
+   * instead of creating a new one. */
+  editBooking?: EditableBooking | null;
+  /** Fired after a successful edit save (edit mode only). */
+  onSaved?: () => void;
 }) {
-  const [bookingDate, setBookingDate] = useState(date);
-  const [hours, setHours] = useState<number[]>([]);
-  const [customerName, setCustomerName] = useState("");
-  const [contactNumber, setContactNumber] = useState("");
-  const [email, setEmail] = useState("");
-  const [paddleCount, setPaddleCount] = useState<0 | 1 | 2>(0);
-  const [ballCount, setBallCount] = useState<0 | 1 | 3>(0);
-  const [status, setStatus] = useState<"CONFIRMED" | "PENDING">("CONFIRMED");
-  const [adminNote, setAdminNote] = useState("");
+  const isEditing = !!editBooking;
+  const [bookingDate, setBookingDate] = useState(editBooking ? editBooking.date.slice(0, 10) : date);
+  const [hours, setHours] = useState<number[]>(editBooking ? editBooking.startHours : []);
+  const [customerName, setCustomerName] = useState(editBooking?.customerName ?? "");
+  const [contactNumber, setContactNumber] = useState(editBooking?.contactNumber ?? "");
+  const [email, setEmail] = useState(editBooking?.email && editBooking.email !== "walkin@heidespickleballhub.local" ? editBooking.email : "");
+  const [paddleCount, setPaddleCount] = useState<0 | 1 | 2>((editBooking?.paddleCount as 0 | 1 | 2) ?? 0);
+  const [ballCount, setBallCount] = useState<0 | 1 | 3>((editBooking?.ballCount as 0 | 1 | 3) ?? 0);
+  const [status, setStatus] = useState<"CONFIRMED" | "PENDING" | "REJECTED" | "CANCELLED">(
+    editBooking ? editBooking.status : "CONFIRMED"
+  );
+  const [adminNote, setAdminNote] = useState(editBooking?.adminNote ?? "");
+  const [isFree, setIsFree] = useState(editBooking?.isFree ?? false);
+  const [isPaid, setIsPaid] = useState(editBooking?.isPaid ?? true);
   const [notifyCustomer, setNotifyCustomer] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +83,14 @@ export default function AdminManualBookingForm({
 
   // Reset the slot selection whenever the admin switches dates inside the
   // modal — an hour picked for one day shouldn't silently carry to another.
+  // Skipped on the very first render so editing an existing booking doesn't
+  // immediately wipe out its own pre-selected hours.
+  const mountedRef = useRef(false);
   useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
     setHours([]);
   }, [bookingDate]);
 
@@ -105,26 +139,51 @@ export default function AdminManualBookingForm({
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/admin/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName,
-          contactNumber,
-          email,
-          date: bookingDate,
-          hours,
-          paddleCount,
-          ballCount,
-          status,
-          adminNote: adminNote.trim() || undefined,
-          notifyCustomer: notifyCustomer && emailIsValid,
-        }),
-      });
+      const res = isEditing
+        ? await fetch(`/api/admin/bookings/${editBooking!.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode: "edit",
+              customerName,
+              contactNumber,
+              email,
+              date: bookingDate,
+              hours,
+              paddleCount,
+              ballCount,
+              status,
+              adminNote: adminNote.trim() || undefined,
+              isFree,
+              isPaid,
+            }),
+          })
+        : await fetch("/api/admin/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customerName,
+              contactNumber,
+              email,
+              date: bookingDate,
+              hours,
+              paddleCount,
+              ballCount,
+              status,
+              adminNote: adminNote.trim() || undefined,
+              notifyCustomer: notifyCustomer && emailIsValid,
+              isFree,
+              isPaid,
+            }),
+          });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create booking.");
-      setDone(true);
-      onCreated(bookingDate);
+      if (!res.ok) throw new Error(data.error || `Failed to ${isEditing ? "save" : "create"} booking.`);
+      if (isEditing) {
+        onSaved?.();
+      } else {
+        setDone(true);
+        onCreated(bookingDate);
+      }
     } catch (err: any) {
       setError(err.message);
       setGridKey((k) => k + 1); // slot may now be taken — refresh grid
@@ -155,8 +214,10 @@ export default function AdminManualBookingForm({
       <div className="fixed top-3 sm:top-6 md:top-10 inset-x-3 sm:inset-x-0 sm:mx-auto w-auto sm:w-full sm:max-w-4xl max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] md:max-h-[calc(100vh-5rem)] overflow-y-auto overscroll-contain rounded-court bg-white shadow-court-lg border-2 border-court-orange/20">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-white/95 backdrop-blur border-b border-court-ink/10 px-5 sm:px-6 py-4 rounded-t-court">
           <div>
-            <h3 className="font-display font-700 text-lg text-court-ink">Add manual booking</h3>
-            <p className="text-xs text-court-ink/50">Walk-in or phone-in reservation, added straight to the schedule.</p>
+            <h3 className="font-display font-700 text-lg text-court-ink">{isEditing ? "Edit booking" : "Add manual booking"}</h3>
+            <p className="text-xs text-court-ink/50">
+              {isEditing ? "Update this reservation's details, schedule, or payment tags." : "Walk-in or phone-in reservation, added straight to the schedule."}
+            </p>
           </div>
           <button
             type="button"
@@ -195,7 +256,15 @@ export default function AdminManualBookingForm({
                 <DatePicker value={bookingDate} onChange={setBookingDate} />
               </div>
               <div key={gridKey}>
-                <ScheduleGrid date={bookingDate} mode="select" selected={hours} onToggle={toggleHour} autoRefresh={false} admin />
+                <ScheduleGrid
+                  date={bookingDate}
+                  mode="select"
+                  selected={hours}
+                  onToggle={toggleHour}
+                  autoRefresh={false}
+                  admin
+                  excludeBookingId={editBooking?.id}
+                />
               </div>
               {hours.length > 0 && (
                 <p className="mt-3 text-xs font-medium text-court-ink/60">
@@ -271,22 +340,64 @@ export default function AdminManualBookingForm({
 
               <div>
                 <span className="block mb-1.5 text-sm font-medium text-court-ink/80">Status</span>
-                <div className="flex gap-2">
-                  {(["CONFIRMED", "PENDING"] as const).map((s) => (
+                <div className="flex flex-wrap gap-2">
+                  {(isEditing ? (["CONFIRMED", "PENDING", "REJECTED", "CANCELLED"] as const) : (["CONFIRMED", "PENDING"] as const)).map((s) => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => setStatus(s)}
-                      className={`focus-ring flex-1 rounded-xl border-2 px-3 py-2 text-sm font-semibold transition-colors ${
+                      className={`focus-ring flex-1 min-w-[7rem] rounded-xl border-2 px-3 py-2 text-sm font-semibold transition-colors ${
                         status === s
                           ? "border-court-orange bg-court-orange/10 text-court-orange-dark"
                           : "border-court-ink/15 text-court-ink/60 hover:border-court-orange/40"
                       }`}
                     >
-                      {s === "CONFIRMED" ? "Confirmed" : "Pending approval"}
+                      {s === "CONFIRMED" ? "Confirmed" : s === "PENDING" ? "Pending approval" : s === "REJECTED" ? "Rejected" : "Cancelled"}
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Free / paid tags — independent of status. A booking can be
+                  CONFIRMED and still be comped (isFree) or awaiting actual
+                  payment (isPaid off). Marking it free implies paid, since
+                  there's nothing to collect. */}
+              <div className="grid grid-cols-2 gap-3">
+                <label
+                  className={`flex items-start gap-2.5 rounded-xl border-2 px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+                    isFree ? "border-court-blue-dark/40 bg-court-blue-light/15" : "border-court-ink/10 hover:border-court-ink/20"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isFree}
+                    onChange={(e) => setIsFree(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-court-ink/30 accent-court-blue-dark"
+                  />
+                  <span>
+                    <span className="block font-medium text-court-ink/80">Free booking</span>
+                    <span className="block text-xs text-court-ink/50">No charge — excluded from revenue.</span>
+                  </span>
+                </label>
+                <label
+                  className={`flex items-start gap-2.5 rounded-xl border-2 px-3 py-2.5 text-sm transition-colors ${
+                    isFree ? "border-court-ink/10 opacity-40 cursor-not-allowed" : "border-court-ink/10 cursor-pointer hover:border-court-ink/20"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isFree ? true : isPaid}
+                    disabled={isFree}
+                    onChange={(e) => setIsPaid(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-court-ink/30 accent-court-orange"
+                  />
+                  <span>
+                    <span className="block font-medium text-court-ink/80">Payment received</span>
+                    <span className="block text-xs text-court-ink/50">
+                      {isFree ? "N/A for a free booking." : "Uncheck if they still owe — kept out of revenue until paid."}
+                    </span>
+                  </span>
+                </label>
               </div>
 
               <label className="text-sm block">
@@ -299,25 +410,27 @@ export default function AdminManualBookingForm({
                 />
               </label>
 
-              <label
-                className={`flex items-start gap-2.5 rounded-xl border-2 px-3 py-2.5 text-sm transition-colors ${
-                  email.trim() ? "border-court-blue-dark/25 bg-court-blue-light/10" : "border-court-ink/10 bg-court-ink/5 opacity-60"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={notifyCustomer}
-                  disabled={!email.trim()}
-                  onChange={(e) => setNotifyCustomer(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-court-ink/30 accent-court-orange"
-                />
-                <span>
-                  <span className="block font-medium text-court-ink/80">Email the customer a confirmation</span>
-                  <span className="block text-xs text-court-ink/50">
-                    {email.trim() ? "Sent right after this booking is saved." : "Add an email above to enable this."}
+              {!isEditing && (
+                <label
+                  className={`flex items-start gap-2.5 rounded-xl border-2 px-3 py-2.5 text-sm transition-colors ${
+                    email.trim() ? "border-court-blue-dark/25 bg-court-blue-light/10" : "border-court-ink/10 bg-court-ink/5 opacity-60"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={notifyCustomer}
+                    disabled={!email.trim()}
+                    onChange={(e) => setNotifyCustomer(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-court-ink/30 accent-court-orange"
+                  />
+                  <span>
+                    <span className="block font-medium text-court-ink/80">Email the customer a confirmation</span>
+                    <span className="block text-xs text-court-ink/50">
+                      {email.trim() ? "Sent right after this booking is saved." : "Add an email above to enable this."}
+                    </span>
                   </span>
-                </span>
-              </label>
+                </label>
+              )}
 
               {/* Order summary */}
               <div className="rounded-xl border-2 border-court-ink/10 bg-court-cream/60 px-4 py-3 text-sm">
@@ -361,7 +474,7 @@ export default function AdminManualBookingForm({
                   disabled={submitting}
                   className="focus-ring flex-[2] rounded-full bg-court-orange text-white px-6 py-2.5 font-semibold hover:bg-court-orange-dark disabled:opacity-50"
                 >
-                  {submitting ? "Saving…" : "Add booking"}
+                  {submitting ? "Saving…" : isEditing ? "Save changes" : "Add booking"}
                 </button>
               </div>
             </div>

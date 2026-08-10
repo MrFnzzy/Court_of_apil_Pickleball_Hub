@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { labelForSlot } from "@/lib/pricing";
 import ModalPortal from "@/components/ModalPortal";
+import AdminManualBookingForm, { EditableBooking } from "@/components/AdminManualBookingForm";
 
 type Booking = {
   id: string;
@@ -25,6 +26,8 @@ type Booking = {
   adminNote: string | null;
   createdAt: string;
   groupId: string | null;
+  isFree: boolean;
+  isPaid: boolean;
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -118,6 +121,8 @@ export default function AdminBookingHistory() {
   // scrolling through the whole list.
   const [dateFilter, setDateFilter] = useState("");
 
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -189,9 +194,11 @@ export default function AdminBookingHistory() {
     let pending = 0;
     let confirmed = 0;
     let inactive = 0;
+    let freeOrUnpaid = 0;
     for (const b of filtered) {
       if (b.status === "CONFIRMED") {
-        confirmedRevenue += b.grandTotal;
+        if (!b.isFree && b.isPaid) confirmedRevenue += b.grandTotal;
+        else freeOrUnpaid++;
         confirmed++;
       } else if (b.status === "PENDING") {
         pending++;
@@ -199,7 +206,7 @@ export default function AdminBookingHistory() {
         inactive++;
       }
     }
-    return { confirmedRevenue, pending, confirmed, inactive, total: filtered.length };
+    return { confirmedRevenue, pending, confirmed, inactive, freeOrUnpaid, total: filtered.length };
   }, [filtered]);
 
   // Group the (already-sorted) filtered list into consecutive same-day
@@ -478,10 +485,11 @@ export default function AdminBookingHistory() {
 
         {/* Live summary of whatever's currently in view. */}
         {!loading && bookings.length > 0 && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2.5">
             <StatPill label="In view" value={String(stats.total)} />
             <StatPill label="Confirmed revenue" value={peso(stats.confirmedRevenue)} accent />
             <StatPill label="Pending" value={String(stats.pending)} warn={stats.pending > 0} />
+            <StatPill label="Free / unpaid" value={String(stats.freeOrUnpaid)} warn={stats.freeOrUnpaid > 0} />
             <StatPill label="Rejected/cancelled" value={String(stats.inactive)} />
           </div>
         )}
@@ -506,7 +514,7 @@ export default function AdminBookingHistory() {
           {groups.map((group) => {
             const groupIsPast = group.date < today;
             const groupRevenue = group.items
-              .filter((b) => b.status === "CONFIRMED")
+              .filter((b) => b.status === "CONFIRMED" && !b.isFree && b.isPaid)
               .reduce((sum, b) => sum + b.grandTotal, 0);
             return (
               <div key={group.date}>
@@ -567,6 +575,16 @@ export default function AdminBookingHistory() {
                                 <span className={`text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_BADGE[b.status]}`}>
                                   {b.status}
                                 </span>
+                                {b.isFree && (
+                                  <span className="text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 bg-court-blue-light text-court-blue-dark border-court-blue/30">
+                                    Free
+                                  </span>
+                                )}
+                                {!b.isFree && !b.isPaid && (
+                                  <span className="text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 bg-amber-100 text-amber-700 border-amber-300">
+                                    Unpaid
+                                  </span>
+                                )}
                                 {isPast ? (
                                   <span className="text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 bg-court-ink/5 text-court-ink/50 border-court-ink/10">
                                     Past
@@ -645,6 +663,15 @@ export default function AdminBookingHistory() {
                               with a status). Upcoming bookings are still live
                               reservations, so they're managed from the Schedule /
                               Pending tabs instead, not deleted from here. */}
+                          {!selectMode && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingBooking(b)}
+                              className="focus-ring text-sm font-semibold text-court-blue-dark hover:text-court-blue-dark/80 hover:underline"
+                            >
+                              Edit
+                            </button>
+                          )}
                           {isPast && !selectMode && (
                             <button
                               type="button"
@@ -712,6 +739,21 @@ export default function AdminBookingHistory() {
             <p className="rounded-full bg-red-600 text-white text-sm font-semibold px-4 py-2 shadow-court-lg">{bulkError}</p>
           </div>
         </ModalPortal>
+      )}
+
+      {editingBooking && (
+        <AdminManualBookingForm
+          date={editingBooking.date.slice(0, 10)}
+          editBooking={editingBooking as EditableBooking}
+          onClose={() => setEditingBooking(null)}
+          onCreated={() => {}}
+          onSaved={async () => {
+            setEditingBooking(null);
+            const res = await fetch("/api/admin/bookings", { cache: "no-store" });
+            const data = await res.json();
+            setBookings(data.bookings || []);
+          }}
+        />
       )}
 
       {deletingBooking && (

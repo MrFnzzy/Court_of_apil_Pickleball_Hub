@@ -50,6 +50,8 @@ export async function POST(req: NextRequest) {
       status = "CONFIRMED",
       adminNote,
       notifyCustomer = false,
+      isFree = false,
+      isPaid = true,
     } = body;
 
     if (!customerName || !dateStr || !Array.isArray(hours) || hours.length === 0) {
@@ -81,6 +83,8 @@ export async function POST(req: NextRequest) {
           amountSent: courtTotal + rentalTotal + ballTotal,
           proofOfPaymentUrl: "",
           status,
+          isFree: !!isFree,
+          isPaid: isFree ? true : !!isPaid,
           adminNote: adminNote || "Manually added by admin",
         },
       });

@@ -6,7 +6,7 @@ import DatePicker from "@/components/DatePicker";
 import ScheduleGrid from "@/components/ScheduleGrid";
 import AdminPaymentAccounts from "@/components/AdminPaymentAccounts";
 import AdminPricingSettings from "@/components/AdminPricingSettings";
-import AdminManualBookingForm from "@/components/AdminManualBookingForm";
+import AdminManualBookingForm, { EditableBooking } from "@/components/AdminManualBookingForm";
 import ModalPortal from "@/components/ModalPortal";
 import AdminSiteContent from "@/components/admin/AdminSiteContent";
 import AdminMusicSettings from "@/components/admin/AdminMusicSettings";
@@ -52,7 +52,13 @@ type Booking = {
   discountPercent: number;
   discountAmount: number;
   discount: { code: string } | null;
+  isFree: boolean;
+  isPaid: boolean;
 };
+
+function peso(n: number): string {
+  return `₱${n.toLocaleString("en-PH")}`;
+}
 
 const STATUS_BADGE: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700 border-amber-300",
@@ -110,6 +116,7 @@ export default function AdminDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [showManualForm, setShowManualForm] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [gridKey, setGridKey] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -396,9 +403,21 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            <h2 className="font-display font-700 text-xl text-court-ink mb-4">
-              Bookings for {new Date(date + "T00:00:00").toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric" })}
-            </h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+              <h2 className="font-display font-700 text-xl text-court-ink">
+                Bookings for {new Date(date + "T00:00:00").toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric" })}
+              </h2>
+              {!loading && bookings.length > 0 && (
+                <p className="text-sm font-semibold text-court-orange-dark">
+                  {peso(
+                    bookings
+                      .filter((b) => b.status === "CONFIRMED" && !b.isFree && b.isPaid)
+                      .reduce((sum, b) => sum + b.grandTotal, 0)
+                  )}{" "}
+                  <span className="text-xs font-medium text-court-ink/50">confirmed revenue</span>
+                </p>
+              )}
+            </div>
 
             {loading ? (
               <p className="text-court-ink/50">Loading…</p>
@@ -415,6 +434,16 @@ export default function AdminDashboard() {
                           <span className={`text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_BADGE[b.status]}`}>
                             {b.status}
                           </span>
+                          {b.isFree && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 bg-court-blue-light text-court-blue-dark border-court-blue/30">
+                              Free
+                            </span>
+                          )}
+                          {!b.isFree && !b.isPaid && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 bg-amber-100 text-amber-700 border-amber-300">
+                              Unpaid
+                            </span>
+                          )}
                           {b.groupId && (
                             <span
                               className="text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 bg-court-orange/10 text-court-orange-dark border-court-orange/30"
@@ -497,6 +526,12 @@ export default function AdminDashboard() {
                           Reschedule
                         </button>
                       )}
+                      <button
+                        onClick={() => setEditingBooking(b)}
+                        className="focus-ring rounded-full bg-white text-court-ink/70 border border-court-ink/15 px-4 py-1.5 text-sm font-semibold hover:bg-court-ink/5"
+                      >
+                        Edit
+                      </button>
                       {b.status !== "CANCELLED" && b.status === "CONFIRMED" && (
                         <button
                           onClick={() => updateStatus(b.id, "CANCELLED")}
@@ -576,6 +611,21 @@ export default function AdminDashboard() {
           </div>
         </div>
         </ModalPortal>
+      )}
+
+      {editingBooking && (
+        <AdminManualBookingForm
+          date={editingBooking.date.slice(0, 10)}
+          editBooking={editingBooking as EditableBooking}
+          onClose={() => setEditingBooking(null)}
+          onCreated={() => {}}
+          onSaved={async () => {
+            setEditingBooking(null);
+            await loadBookings();
+            await loadAllPending();
+            setGridKey((k) => k + 1);
+          }}
+        />
       )}
 
       {reschedulingBooking && (

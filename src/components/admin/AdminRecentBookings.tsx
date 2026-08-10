@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { labelForSlot } from "@/lib/pricing";
+import AdminManualBookingForm, { EditableBooking } from "@/components/AdminManualBookingForm";
 
 type Booking = {
   id: string;
@@ -11,8 +12,13 @@ type Booking = {
   date: string;
   startHours: number[];
   grandTotal: number;
+  paddleCount: number;
+  ballCount: number;
   referenceNumber: string;
   status: "PENDING" | "CONFIRMED" | "REJECTED" | "CANCELLED";
+  adminNote: string | null;
+  isFree: boolean;
+  isPaid: boolean;
   createdAt: string;
 };
 
@@ -58,7 +64,7 @@ function peso(n: number): string {
   return `₱${n.toLocaleString("en-PH")}`;
 }
 
-function BookingRow({ b, showDate }: { b: Booking; showDate?: boolean }) {
+function BookingRow({ b, showDate, onEdit }: { b: Booking; showDate?: boolean; onEdit: (b: Booking) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-court-ink/10 px-3 py-2.5">
       {showDate && (
@@ -69,7 +75,24 @@ function BookingRow({ b, showDate }: { b: Booking; showDate?: boolean }) {
       <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${STATUS_BADGE[b.status]}`}>
         {b.status}
       </span>
+      {b.isFree && (
+        <span className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold bg-court-blue-light text-court-blue-dark border-court-blue/30">
+          Free
+        </span>
+      )}
+      {!b.isFree && !b.isPaid && (
+        <span className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 border-amber-300">
+          Unpaid
+        </span>
+      )}
       <span className="text-xs text-court-ink/60 shrink-0">{peso(b.grandTotal)}</span>
+      <button
+        type="button"
+        onClick={() => onEdit(b)}
+        className="focus-ring shrink-0 text-xs font-semibold text-court-blue-dark hover:underline"
+      >
+        Edit
+      </button>
     </div>
   );
 }
@@ -94,25 +117,23 @@ export default function AdminRecentBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<"upcoming" | "past" | "all">("upcoming");
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+
+  async function load() {
+    try {
+      const res = await fetch("/api/admin/bookings", { cache: "no-store" });
+      const data = await res.json();
+      setBookings(data.bookings || []);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/admin/bookings", { cache: "no-store" });
-        const data = await res.json();
-        if (!cancelled) setBookings(data.bookings || []);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
+    setLoading(true);
     load();
     const interval = setInterval(load, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   const today = manilaToday();
@@ -150,9 +171,34 @@ export default function AdminRecentBookings() {
     return entries;
   }, [bookings, range, today]);
 
+  // Confirmed revenue across whatever's in the currently selected range
+  // (today's bookings + the grouped range below), excluding free/unpaid.
+  const rangeRevenue = useMemo(() => {
+    const ids = new Set<string>();
+    const items: Booking[] = [];
+    for (const b of todayItems) {
+      if (!ids.has(b.id)) {
+        ids.add(b.id);
+        items.push(b);
+      }
+    }
+    for (const g of groups) {
+      for (const b of g.items) {
+        if (!ids.has(b.id)) {
+          ids.add(b.id);
+          items.push(b);
+        }
+      }
+    }
+    return items
+      .filter((b) => b.status === "CONFIRMED" && !b.isFree && b.isPaid)
+      .reduce((sum, b) => sum + b.grandTotal, 0);
+  }, [todayItems, groups]);
+
   return (
+    <>
     <div className="rounded-court bg-white border-2 border-court-blue/20 shadow-court p-4 sm:p-5">
-      <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
         <h3 className="font-display font-700 text-court-ink text-base sm:text-lg">Recent bookings</h3>
         <div className="flex gap-1.5">
           {(["upcoming", "past", "all"] as const).map((r) => (
@@ -170,6 +216,11 @@ export default function AdminRecentBookings() {
           ))}
         </div>
       </div>
+      {!loading && (
+        <p className="text-sm font-semibold text-court-orange-dark mb-4">
+          {peso(rangeRevenue)} <span className="text-xs font-medium text-court-ink/50">confirmed revenue in view</span>
+        </p>
+      )}
 
       {loading ? (
         <p className="text-sm text-court-ink/50 py-10 text-center">Loading…</p>
@@ -185,7 +236,7 @@ export default function AdminRecentBookings() {
               </div>
               <div className="space-y-1.5">
                 {todayItems.map((b) => (
-                  <BookingRow key={b.id} b={b} showDate />
+                  <BookingRow key={b.id} b={b} showDate onEdit={setEditingBooking} />
                 ))}
               </div>
             </div>
@@ -206,7 +257,7 @@ export default function AdminRecentBookings() {
                 </div>
                 <div className="space-y-1.5">
                   {g.items.map((b) => (
-                    <BookingRow key={b.id} b={b} />
+                    <BookingRow key={b.id} b={b} onEdit={setEditingBooking} />
                   ))}
                 </div>
               </div>
@@ -215,5 +266,19 @@ export default function AdminRecentBookings() {
         </div>
       )}
     </div>
+
+    {editingBooking && (
+      <AdminManualBookingForm
+        date={editingBooking.date.slice(0, 10)}
+        editBooking={editingBooking as EditableBooking}
+        onClose={() => setEditingBooking(null)}
+        onCreated={() => {}}
+        onSaved={async () => {
+          setEditingBooking(null);
+          await load();
+        }}
+      />
+    )}
+    </>
   );
 }
