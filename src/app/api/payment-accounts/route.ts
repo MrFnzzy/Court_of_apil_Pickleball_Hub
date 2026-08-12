@@ -1,0 +1,17 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+// Unlike the other public settings routes, payment accounts are meant to
+// only change when the site is redeployed — not live, the moment an admin
+// saves an edit. Statically generating this route caches its response at
+// build time and serves that same cached response on every request until
+// the next deploy, when it's regenerated.
+export const dynamic = "force-static";
+
+export async function GET() {
+  const accounts = await prisma.paymentAccount.findMany({
+    where: { active: true },
+    orderBy: { method: "asc" },
+  });
+  return NextResponse.json({ accounts });
+}
