@@ -19,6 +19,7 @@ import InteractionFX from "@/components/InteractionFX";
 import PickleballBackdrop from "@/components/PickleballBackdrop";
 import AmbientCourtMusic from "@/components/AmbientCourtMusic";
 import VisitTracker from "@/components/VisitTracker";
+import { Analytics } from "@vercel/analytics/next";
 
 // This app reads branding, copy, and pricing from the database on every
 // request (via the admin dashboard). Without this line, Next.js can
@@ -86,6 +87,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           musicTitle={settings.musicTitle}
           autoplayDefault={settings.musicAutoplay}
         />
+        <Analytics />
       </body>
     </html>
   );
