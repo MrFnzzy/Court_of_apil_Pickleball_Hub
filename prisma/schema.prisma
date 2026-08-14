@@ -1,0 +1,462 @@
+// Court of Apil Pickleball Hub — Database schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum BookingStatus {
+  PENDING   // awaiting admin approval of proof of payment
+  CONFIRMED // approved, confirmation email sent
+  REJECTED  // proof of payment rejected / invalid
+  CANCELLED // cancelled by admin
+}
+
+enum PaymentMethod {
+  GCASH
+  MAYA
+  BPI
+}
+
+enum DiscountSource {
+  MANUAL     // typed in by the admin from the Discounts tab
+  SPIN_WHEEL // auto-generated when a customer wins a spin
+}
+
+// One row per booking "order" — can cover multiple hourly slots in one day
+model Booking {
+  id                String        @id @default(cuid())
+  customerName      String        @default("")
+  contactNumber     String        @default("")
+  email             String        @default("")
+  date              DateTime      @default(now())
+  startHours        Int[]
+  courtTotal        Int           @default(0)
+  rentalTotal       Int           @default(0)
+  grandTotal        Int           @default(0)
+  paddleCount       Int           @default(0)
+  // Balls used to come free bundled with a paddle rental; they're now their
+  // own separately-priced rental (1 or 3 balls), tracked the same way
+  // paddleCount/rentalTotal are.
+  ballCount         Int           @default(0)
+  ballTotal         Int           @default(0)
+  paymentMethod     PaymentMethod @default(GCASH)
+  referenceNumber   String        @default("")
+  amountSent        Int           @default(0)
+  proofOfPaymentUrl String        @default("")
+  status            BookingStatus @default(PENDING)
+  // Admin-only tags, independent of `status`. A booking can be CONFIRMED
+  // and still be `isFree` (comped/courtesy booking — no charge) or not
+  // `isPaid` (payment hasn't actually been collected yet, e.g. a walk-in
+  // who'll pay later). Both default to the "normal paying customer" case
+  // so existing rows and ordinary online bookings are unaffected.
+  isFree            Boolean       @default(false)
+  isPaid            Boolean       @default(true)
+  adminNote         String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now()) @updatedAt
+
+  // Post-play feedback: set once the booking's reserved time has fully
+  // elapsed and the "thanks for playing" email has gone out. feedbackToken
+  // is the unguessable id used in that email's link (/feedback/[token]);
+  // it's generated at send time, not at booking time, so a booking that
+  // never completes never gets one.
+  feedbackToken       String?   @unique
+  feedbackEmailSentAt DateTime?
+
+  // Links together the multiple Booking rows created from a single
+  // "book today + tomorrow in one go" checkout (see /api/bookings). Null for
+  // ordinary single-day bookings. All rows sharing a groupId were created in
+  // the same DB transaction and share customer/payment info.
+  groupId String?
+
+  // Promo code applied at checkout (typed in by the customer, or won from
+  // the spin wheel). Nullable — most bookings have no discount. When set,
+  // discountAmount has already been subtracted out of grandTotal above, so
+  // grandTotal always reflects what the customer actually needed to pay.
+  discountId      String?
+  discount        Discount? @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  discountPercent Int       @default(0)
+  discountAmount  Int       @default(0)
+
+  // Set once a "spin the wheel" invite email has gone out for this booking,
+  // so the lazy sweep (mirrors feedbackEmailSentAt below) never sends it
+  // twice. Independent of feedbackEmailSentAt — a booking can trigger
+  // either, both, or neither depending on whether the spin wheel feature
+  // is turned on.
+  spinInviteSentAt DateTime?
+
+  slots             Slot[]
+  feedback          Feedback?
+
+  @@index([groupId])
+  @@index([discountId])
+}
+
+// One customer feedback submission per completed booking, collected via the
+// link in the post-play "thanks for playing" email. Ratings are 1-5 stars.
+model Feedback {
+  id            String   @id @default(cuid())
+  bookingId     String   @unique
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  overallRating Int
+  venueRating   Int
+  valueRating   Int
+  comment       String?
+
+  createdAt     DateTime @default(now())
+}
+
+// One row per individual hour claimed on the calendar. Used by the schedule
+// grid to look up per-hour availability and to enforce that the same
+// date+hour can't be double-booked.
+model Slot {
+  id        String   @id @default(cuid())
+  date      DateTime
+  hour      Int
+  bookingId String
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([date, hour])
+}
+
+// Payment accounts (GCash/Maya/BPI) shown to customers at checkout,
+// managed by the admin from the "Payment accounts" tab.
+model PaymentAccount {
+  id            String        @id @default(cuid())
+  method        PaymentMethod
+  accountName   String
+  accountNumber String
+  qrImageUrl    String?
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
+}
+
+// Homepage hero carousel slides. Not yet wired into any page — this is a
+// minimal placeholder shape (image + optional text/link + ordering) so the
+// API route compiles. Adjust field names freely once the actual slider UI
+// is built, since nothing currently depends on these fields.
+model HeroSlide {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  headline  String?
+  subtext   String?
+  linkUrl   String?
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// Singleton row for the homepage popup ad — a promo banner shown as a
+// blurred-backdrop modal the first time a visitor lands on the homepage
+// each browser session (tracked client-side via sessionStorage, keyed to
+// `updatedAt` so editing the ad makes it reappear even for people who
+// already dismissed the previous version this session). enabled controls
+// whether it shows at all; imageUrl is required for it to display since an
+// ad with no image isn't really an ad, everything else is optional.
+model PopupAd {
+  id         String   @id @default("singleton")
+  enabled    Boolean  @default(false)
+  imageUrl   String?
+  videoUrl   String?
+  headline   String?
+  message    String?
+  linkUrl    String?
+  buttonText String?
+  updatedAt  DateTime @default(now()) @updatedAt
+}
+
+// Singleton row holding admin-editable court & rental pricing. Always
+// looked up/created via the fixed id "singleton" in getPricingSettings().
+model PricingSettings {
+  id                String @id @default("singleton")
+  weekdayDayPrice   Int    @default(200)
+  weekdayNightPrice Int    @default(250)
+  weekendPrice      Int    @default(250)
+  rental1Price      Int    @default(100)
+  rental2Price      Int    @default(150)
+  ball1Price        Int    @default(50)
+  ball3Price        Int    @default(120)
+}
+
+// Singleton row holding everything the admin can customize about the site's
+// look and copy without touching code: branding (name/tagline/logo), the
+// brand color palette (applied site-wide via CSS variables), and the text
+// shown in the hero, about, and footer sections of the homepage. Always
+// looked up/created via the fixed id "singleton" in getSiteSettings().
+model SiteSettings {
+  id      String  @id @default("singleton")
+
+  // Branding
+  siteName    String  @default("Heide's")
+  siteTagline String  @default("Pickleball Hub")
+  logoUrl     String?
+
+  // Full "Heide's Pickleball Hub" wordmark image shown in the header next to
+  // the round icon, replacing the plain site name + tagline text. Falls back
+  // to that text automatically when empty.
+  wordmarkLogoUrl String? @default("/heides-wordmark.png")
+
+  // Brand colors (hex). Applied globally via CSS variables so the whole
+  // site's palette updates without a code change or rebuild.
+  colorOrange      String @default("#F46036")
+  colorOrangeDark  String @default("#D6491F")
+  colorOrangeLight String @default("#FF8C61")
+  colorBlue        String @default("#6CD4FF")
+  colorBlueDark    String @default("#2FA8D9")
+  colorBlueLight   String @default("#C7EEFF")
+  colorInk         String @default("#173A45")
+  colorCream       String @default("#FBF8F3")
+
+  // "Energy" accent — the plasma cyan/crimson pair used by the promo-code
+  // slash animation and, from here, anywhere else on the site that wants to
+  // borrow that same sci-fi energy (discount badges, promo boxes, the spin
+  // wheel). Kept separate from colorBlue/colorOrange so it reads as a
+  // deliberate accent rather than replacing the core brand palette.
+  colorEnergyCyan String @default("#64DCFF")
+  colorEnergyRed  String @default("#DC2626")
+
+  // Hero section copy
+  heroBadgeText           String @default("Open 24/7 · Talisay City, Cebu")
+  heroHeadlineLine1       String @default("Heide's")
+  heroHeadlineLine2       String @default("Pickleball Hub")
+  heroSubtext             String @default("An exclusive outdoor pickleball court in Talisay City, Cebu — open around the clock, with paddle & ball rentals on-site and free parking for every player.")
+  heroPrimaryButtonText   String @default("Book a slot")
+  heroSecondaryButtonText String @default("See pricing")
+  heroCardTitle           String @default("Rentals available")
+  heroCardSubtitle        String @default("Paddles & balls on-site")
+
+  // About section copy
+  aboutHeading String @default("About the court")
+  aboutText    String @default("Heide's Pickleball Hub is an exclusive outdoor pickleball court located in Talisay City, Cebu. The facility is open 24/7 and offers paddle and ball rentals, with free parking available for players.")
+  aboutBullets String @default("Outdoor court, open every day, all day\nPaddle & ball rental available on-site\nFree parking for all players\nLocated in Talisay City, Cebu")
+
+  // Footer copy
+  footerTagline      String @default("An exclusive outdoor pickleball court in Talisay City, Cebu. Open 24/7, with paddle & ball rentals and free parking.")
+  footerLocationText String @default("Talisay City, Cebu, Philippines")
+  footerMapUrl       String @default("https://maps.app.goo.gl/5cj5BP3vJSMy94p48?g_st=afm")
+  footerHoursText    String @default("Open 24 hours a day, every day.")
+
+  // Site-wide background music. Uploaded by the admin from the "Music" tab
+  // (stored as a real audio file via Vercel Blob, not synthesized). When
+  // musicUrl is empty, the site falls back to the built-in synthesized
+  // ambient loop so there's never dead silence. musicAutoplay controls
+  // whether new visitors get music playing by default; each visitor can
+  // still flip it off for themselves (remembered on their device).
+  musicUrl      String? 
+  musicTitle    String  @default("")
+  musicAutoplay Boolean @default(true)
+
+  // Hours the court is closed for booking every single day (e.g. the
+  // overnight maintenance window). Stored as an array of starting hours
+  // (0-23) — an hour in this list means that slot never shows as bookable
+  // to customers, no matter the date. The admin can toggle hours back open
+  // any time from the "Hours & alerts" tab; customers never see *why* a
+  // slot is unavailable, it just reads the same as any other closed slot.
+  closedHours Int[] @default([1, 2, 3, 4])
+
+  // Where to send an internal notification whenever the admin adds a
+  // manual (phone-in / walk-in) booking from the dashboard. Falls back to
+  // the GMAIL_USER sending account when left blank.
+  adminNotificationEmail String @default("")
+
+  // Where the admin login's 6-digit two-factor code gets sent. Falls back
+  // to the GMAIL_USER sending account when left blank (see
+  // resolveAdminLoginEmail() in lib/siteSettings.ts) — set here, edited
+  // from the Security tab.
+  adminLoginEmail String @default("")
+
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// A typeable promo code redeemable at checkout for a percentage off. Created
+// either directly by the admin (source = MANUAL, from the Discounts tab) or
+// automatically the moment a customer wins a prize on the spin wheel
+// (source = SPIN_WHEEL — see SpinInvite below). maxRedemptions caps how many
+// times the code can ever be used in total; leave it null for unlimited.
+model Discount {
+  id              String         @id @default(cuid())
+  code            String         @unique
+  percentage      Int
+  maxRedemptions  Int?
+  redemptionCount Int            @default(0)
+  active          Boolean        @default(true)
+  source          DiscountSource @default(MANUAL)
+  note            String         @default("")
+  // Validity window — the code can't be redeemed before startDate or after
+  // endDate. endDate is nullable so spin-wheel-generated codes (and any
+  // legacy manual codes) that were never given an expiry keep working.
+  startDate       DateTime       @default(now())
+  endDate         DateTime?
+  // Max times a single customer (matched by email) can redeem this code.
+  // Set to 1 for one-time-per-customer codes (the common case).
+  maxPerCustomer  Int            @default(1)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  bookings    Booking[]
+  redemptions DiscountRedemption[]
+  spinInvites SpinInvite[]
+}
+
+// One row per successful redemption — an audit trail of who used a code and
+// on which booking, kept even if the booking itself is later deleted.
+model DiscountRedemption {
+  id         String   @id @default(cuid())
+  discountId String
+  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  email      String
+  bookingId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([discountId])
+}
+
+// One wedge of the spin-the-wheel game. percentage = 0 means "no prize /
+// try again" — a normal wedge that just doesn't generate a discount code.
+// weight sets the relative odds of landing on this wedge (e.g. a wedge with
+// weight 5 is 5x as likely as one with weight 1); the admin edits this as a
+// percentage chance in the UI, which is stored here as a weight out of 100.
+model SpinPrize {
+  id         String   @id @default(cuid())
+  label      String
+  percentage Int      @default(0)
+  weight     Int      @default(10)
+  color      String   @default("#F46036")
+  active     Boolean  @default(true)
+  order      Int      @default(0)
+  // How long a won promo code stays redeemable, in days from the moment the
+  // customer spins. Null = never expires. Only meaningful when percentage >
+  // 0 (a "no prize" wedge never generates a code). Admin-adjustable per
+  // prize in the Spin the Wheel tab, since a bigger prize might reasonably
+  // get a shorter window than a small one.
+  validityDays Int?   @default(90)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  spinInvites SpinInvite[]
+}
+
+// Singleton controlling the spin-the-wheel feature as a whole. `enabled` is
+// the admin's public launch switch — while off, no invite emails go out and
+// any already-issued spin link refuses to spin. `startDate` scopes which
+// bookings qualify: only bookings whose date falls on or after this date
+// trigger an invite once they finish, so turning the feature on doesn't
+// suddenly email every past customer.
+model SpinWheelSettings {
+  id        String    @id @default("singleton")
+  enabled   Boolean   @default(false)
+  startDate DateTime?
+  // Admin-adjustable eligibility condition: a visit only earns a spin
+  // invite if its total booked hours (summed across every slot in that
+  // visit, e.g. 2 one-hour slots = 2) is at least this many. Default 1
+  // means "any booking qualifies" — the original, ungated behavior.
+  minHoursForSpin Int @default(1)
+  updatedAt DateTime  @default(now()) @updatedAt
+}
+
+// One row per spin invite sent — the link in the post-booking email. token
+// is the unguessable id used in that link (/spin/[token]). isTest marks
+// invites the admin sent themselves from the Discounts tab to try the flow
+// end-to-end, kept separate from real customer invites in the admin list.
+model SpinInvite {
+  id           String     @id @default(cuid())
+  token        String     @unique
+  bookingId    String?
+  email        String
+  customerName String     @default("")
+  isTest       Boolean    @default(false)
+  sentAt       DateTime   @default(now())
+  spunAt       DateTime?
+  prizeId      String?
+  prize        SpinPrize? @relation(fields: [prizeId], references: [id], onDelete: SetNull)
+  discountId   String?
+  discount     Discount?  @relation(fields: [discountId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([bookingId])
+}
+
+// One row per unique visitor-day on the public site — powers the
+// "Visitors" counter on the admin dashboard. visitorId is a random id
+// stored in a long-lived anonymous cookie (the site has no customer
+// accounts/logins), so this identifies a browser, not a person. Deduped to
+// at most one row per visitorId per calendar day (Manila time) by the
+// /api/track-visit route, so refreshing the page or browsing multiple
+// pages in one visit never inflates the count.
+model SiteVisit {
+  id        String   @id @default(cuid())
+  visitorId String
+  createdAt DateTime @default(now())
+
+  @@index([visitorId])
+  @@index([createdAt])
+}
+
+// A WebAuthn passkey registered by the admin (Face ID / Touch ID / Windows
+// Hello / a hardware security key). Logging in with a passkey proves
+// possession + biometric/PIN verification in one step, so it's treated as
+// strong enough to skip both the password and the email code entirely —
+// see /api/admin/passkey/login-verify. Only ever created from the
+// already-authenticated Security tab (AdminSecuritySettings), never at
+// login time, since registering a new one requires already being signed in.
+model AdminPasskey {
+  id           String    @id @default(cuid())
+  // Base64url WebAuthn credential ID — how the authenticator identifies
+  // itself on every subsequent login.
+  credentialId String    @unique
+  publicKey    Bytes
+  // Signature counter reported by the authenticator, used to detect a
+  // cloned authenticator (should only ever increase).
+  counter      Int       @default(0)
+  transports   String[]  @default([])
+  // "singleDevice" (older security keys) or "multiDevice" (synced passkeys
+  // like iCloud Keychain / Google Password Manager).
+  deviceType   String    @default("singleDevice")
+  backedUp     Boolean   @default(false)
+  // Editable label so the admin can tell devices apart in the list, e.g.
+  // "iPhone" — seeded from the browser's user agent at registration time.
+  label        String    @default("Passkey")
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+}
+
+// A browser/device that has already completed the email code once and been
+// told to skip it going forward (the "trust this device" checkbox on the
+// OTP screen). Uses the standard selector/verifier pattern: `selector`
+// identifies the row, `verifierHash` is a salted hash of a random secret
+// that only ever lives in the httpOnly cookie — so a stolen DB dump alone
+// can never forge a trusted-device cookie.
+model AdminTrustedDevice {
+  id           String    @id @default(cuid())
+  selector     String    @unique
+  verifierHash String
+  label        String    @default("")
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  expiresAt    DateTime
+}
+
+// One row per browser/device the admin has enabled push notifications on
+// (they might run the dashboard from a phone and a laptop — each gets its
+// own subscription, so a notification reaches every device they've turned
+// it on for). endpoint/p256dh/auth are exactly what the Web Push standard
+// needs to encrypt and deliver a message to that specific browser+device —
+// no login or personal account involved.
+model AdminPushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  label     String? // set from the browser/OS at subscribe time, e.g. "Chrome on Android"
+  createdAt DateTime @default(now())
+}
