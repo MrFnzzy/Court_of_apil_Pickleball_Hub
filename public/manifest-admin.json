@@ -1,0 +1,17 @@
+{
+  "id": "/admin",
+  "name": "Heide's Pickleball Hub Admin",
+  "short_name": "Heide's Admin",
+  "description": "Manage bookings, pricing, and site content for Heide's Pickleball Hub.",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF8F3",
+  "theme_color": "#2FA8D9",
+  "icons": [
+    { "src": "/icons/admin-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/admin-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/admin-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
