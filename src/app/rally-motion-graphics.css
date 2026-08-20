@@ -1,0 +1,86 @@
+/* Rally Motion Graphics: deliberately expressive pickleball choreography.
+   All effects are decorative, pointer-safe, GPU-friendly, and disabled for
+   users who request reduced motion. */
+
+:root { --rally-pointer-x: 50vw; --rally-pointer-y: 50vh; }
+
+.rally-motion-layer, .rally-cursor-layer { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+.rally-motion-layer { z-index: -5; mix-blend-mode: screen; opacity: 0.7; }
+.rally-motion-layer__ball { position: absolute; width: 14px; height: 14px; border: 2px dotted rgb(var(--color-orange) / 0.84); border-radius: 50%; box-shadow: 0 0 18px rgb(var(--color-orange) / 0.55); animation: rally-ball-float 20s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+.rally-motion-layer__ball:nth-child(1) { top: 16%; left: 12%; animation-delay: -8s; }
+.rally-motion-layer__ball:nth-child(2) { right: 9%; bottom: 28%; width: 22px; height: 22px; border-color: rgb(var(--color-blue) / 0.72); box-shadow: 0 0 18px rgb(var(--color-blue) / 0.45); animation-delay: -14s; animation-duration: 28s; }
+.rally-motion-layer__paddle { position: absolute; right: 13%; top: 13%; width: 120px; height: 170px; border: 1px solid rgb(var(--color-blue) / 0.18); border-radius: 48% 48% 45% 45%; transform: rotate(28deg); filter: drop-shadow(0 0 18px rgb(var(--color-blue) / 0.15)); animation: rally-paddle-drift 16s ease-in-out infinite; }
+.rally-motion-layer__paddle::after { content: ""; position: absolute; left: 50%; bottom: -52px; width: 10px; height: 70px; border: 1px solid rgb(var(--color-blue) / 0.22); border-radius: 0 0 999px 999px; transform: translateX(-50%); }
+.rally-motion-layer__court { position: absolute; left: 14%; bottom: -12%; width: 72vw; height: 44vh; border: 1px solid rgb(var(--color-orange) / 0.12); transform: perspective(540px) rotateX(61deg) rotateZ(-17deg); background-image: linear-gradient(90deg, transparent 49.8%, rgb(var(--color-blue) / 0.16) 50%, transparent 50.2%), linear-gradient(0deg, transparent 49.8%, rgb(var(--color-blue) / 0.16) 50%, transparent 50.2%); background-size: 25% 100%, 100% 34%; animation: rally-court-shift 24s ease-in-out infinite; }
+.rally-motion-layer__streak { position: absolute; width: 46vw; height: 1px; top: 38%; left: -10%; opacity: .38; transform: rotate(-17deg); background: linear-gradient(90deg, transparent, rgb(var(--color-orange)), rgb(var(--color-blue)), transparent); box-shadow: 0 0 16px rgb(var(--color-blue) / .8); animation: rally-streak-pass 12s ease-in-out infinite; }
+
+.rally-cursor-layer { display: none; z-index: 2147481000; }
+@media (hover: hover) and (pointer: fine) {
+  .rally-cursor-layer { display: block; }
+  .rally-cursor-layer__orbit, .rally-cursor-layer__dot, .rally-cursor-layer__trail { position: fixed; left: var(--rally-pointer-x); top: var(--rally-pointer-y); transform: translate(-50%, -50%); border-radius: 50%; }
+  .rally-cursor-layer__orbit { width: 34px; height: 34px; border: 1px dashed rgb(var(--color-orange) / .58); box-shadow: 0 0 20px rgb(var(--color-blue) / .22); animation: rally-orbit 4.4s linear infinite; }
+  .rally-cursor-layer__dot { width: 6px; height: 6px; background: var(--color-orange); box-shadow: 0 0 12px rgb(var(--color-orange) / .9); }
+  .rally-cursor-layer__trail { width: 84px; height: 84px; opacity: .24; border: 1px solid rgb(var(--color-blue) / .45); transition: left .11s linear, top .11s linear; }
+}
+
+/* Page navigation becomes a rally-water transition: the pressed link releases
+   a wave from its own location, the wave covers the page, then clears away on
+   the destination. The originating href is preserved exactly by the controller. */
+.rally-page-wave { position: fixed; inset: 0; z-index: 2147483600; pointer-events: none; overflow: hidden; --wave-size: max(160vmax, 2400px); }
+.rally-page-wave::before, .rally-page-wave::after { content: ""; position: absolute; left: var(--wave-x); top: var(--wave-y); width: var(--wave-size); height: var(--wave-size); border-radius: 47% 53% 49% 51% / 54% 45% 55% 46%; transform: translate(-50%, -50%) scale(0); transform-origin: center; }
+.rally-page-wave::before { background: radial-gradient(circle at 34% 30%, rgb(255 255 255 / .66) 0 1.2%, transparent 1.5%), radial-gradient(circle at 68% 63%, rgb(255 255 255 / .22) 0 1.8%, transparent 2.2%), conic-gradient(from 170deg, rgb(var(--color-orange-light)), rgb(var(--color-orange)) 23%, rgb(var(--color-blue-dark)) 54%, rgb(var(--color-blue)) 76%, rgb(var(--color-orange-light))); box-shadow: inset 0 0 110px rgb(255 255 255 / .25), 0 0 80px rgb(var(--color-blue) / .62); }
+.rally-page-wave::after { width: calc(var(--wave-size) * .82); height: calc(var(--wave-size) * .82); border: 8px solid rgb(255 255 255 / .22); box-shadow: 0 0 0 16px rgb(var(--color-blue) / .12), 0 0 52px rgb(var(--color-orange) / .62); }
+.rally-page-wave--cover::before { animation: rally-water-cover .62s cubic-bezier(.17,.84,.33,1) forwards; }
+.rally-page-wave--cover::after { animation: rally-water-ring .7s cubic-bezier(.17,.84,.33,1) forwards; }
+.rally-page-wave--reveal { background: rgb(var(--color-ink)); }
+.rally-page-wave--reveal::before { transform: translate(-50%, -50%) scale(1.1); animation: rally-water-reveal .84s cubic-bezier(.23,1,.32,1) forwards; }
+.rally-page-wave--reveal::after { transform: translate(-50%, -50%) scale(.94); animation: rally-water-ring-reveal .84s cubic-bezier(.23,1,.32,1) forwards; }
+.rally-page-wave__ripple, .rally-page-wave__foam, .rally-page-wave__ball { position: absolute; left: var(--wave-x); top: var(--wave-y); pointer-events: none; }
+.rally-page-wave__ripple { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgb(255 255 255 / .72); transform: translate(-50%, -50%); box-shadow: 0 0 18px rgb(var(--color-blue) / .75); }
+.rally-page-wave--cover .rally-page-wave__ripple { animation: rally-water-ripple .64s cubic-bezier(.17,.84,.33,1) both; }.rally-page-wave--cover .rally-page-wave__ripple:nth-child(2) { animation-delay: .09s; }
+.rally-page-wave__foam { width: 28vw; height: 10vh; opacity: 0; transform: translate(-50%, -50%) rotate(-16deg); background: radial-gradient(ellipse at center, rgb(255 255 255 / .72), transparent 68%); filter: blur(6px); }.rally-page-wave--cover .rally-page-wave__foam { animation: rally-water-foam .72s cubic-bezier(.17,.84,.33,1) both; }
+.rally-page-wave__ball { width: 13px; height: 13px; border: 2px dotted #f5ff8a; border-radius: 50%; opacity: 0; box-shadow: 0 0 16px #f5ff8a; }.rally-page-wave--cover .rally-page-wave__ball { animation: rally-wave-ball .66s cubic-bezier(.17,.84,.33,1) both; }
+
+@keyframes rally-water-cover { 0% { transform: translate(-50%, -50%) scale(0); border-radius: 50%; } 56% { transform: translate(-50%, -50%) scale(.68) rotate(92deg); border-radius: 43% 57% 40% 60% / 61% 39% 61% 39%; } 100% { transform: translate(-50%, -50%) scale(1.15) rotate(178deg); border-radius: 52% 48% 58% 42% / 41% 58% 42% 59%; } }
+@keyframes rally-water-ring { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.02); } 74% { opacity: .82; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2) rotate(-75deg); } }
+@keyframes rally-water-reveal { 0% { clip-path: circle(145% at 50% 50%); transform: translate(-50%, -50%) scale(1.1) rotate(0deg); } 100% { clip-path: circle(0% at 50% 50%); transform: translate(-50%, -50%) scale(.76) rotate(-94deg); } }
+@keyframes rally-water-ring-reveal { 0% { opacity: .72; transform: translate(-50%, -50%) scale(.94); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(.42); } }
+@keyframes rally-water-ripple { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.2); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(44); } }
+@keyframes rally-water-foam { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-16deg) scale(.5); } 44% { opacity: .85; } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(22deg) scale(4.8); } }
+@keyframes rally-wave-ball { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.4); } 48% { opacity: 1; transform: translate(12vw, -18vh) scale(2.5) rotate(220deg); } 100% { opacity: 0; transform: translate(25vw, -38vh) scale(.2) rotate(520deg); } }
+
+.rally-serve-impact { position: fixed; z-index: 2147482000; width: 1px; height: 1px; pointer-events: none; }
+.rally-serve-impact__court, .rally-serve-impact__ball, .rally-serve-impact__spark { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); pointer-events: none; }
+.rally-serve-impact__court { width: 16px; height: 10px; border: 1px solid rgb(var(--color-blue) / .78); box-shadow: 0 0 16px rgb(var(--color-blue) / .5); animation: rally-impact-court .78s cubic-bezier(.23,1,.32,1) forwards; }
+.rally-serve-impact__ball { width: 10px; height: 10px; border: 2px dotted #f5ff8a; border-radius: 50%; box-shadow: 0 0 16px #f5ff8a; animation: rally-impact-ball .72s cubic-bezier(.18,.89,.32,1.22) forwards; }
+.rally-serve-impact__spark { width: 3px; height: 32px; transform-origin: center bottom; background: linear-gradient(to top, rgb(var(--color-orange)), transparent); box-shadow: 0 0 8px rgb(var(--color-orange)); animation: rally-impact-spark .6s cubic-bezier(.23,1,.32,1) forwards; }
+.rally-serve-impact__spark:nth-child(3) { transform: translate(-50%, -50%) rotate(-50deg); }.rally-serve-impact__spark:nth-child(4) { transform: translate(-50%, -50%) rotate(12deg); }.rally-serve-impact__spark:nth-child(5) { transform: translate(-50%, -50%) rotate(68deg); }
+
+body.rally-motion-enabled [data-motion-reveal] { transition: opacity .62s cubic-bezier(.23,1,.32,1), transform .62s cubic-bezier(.23,1,.32,1), filter .62s cubic-bezier(.23,1,.32,1); }
+body.rally-motion-enabled [data-motion-reveal].is-revealed { animation: rally-reveal-flare .72s cubic-bezier(.23,1,.32,1) both; }
+body.rally-motion-enabled .glass-panel, body.rally-motion-enabled .glass-panel-dark, body.rally-motion-enabled .spin-ticket, body.rally-motion-enabled .spin-arena { overflow: hidden; }
+body.rally-motion-enabled .glass-panel::after, body.rally-motion-enabled .glass-panel-dark::after, body.rally-motion-enabled .spin-ticket::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; opacity: 0; background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / .38) 47%, transparent 63%); transform: translateX(-120%) skewX(-14deg); }
+@media (hover: hover) and (pointer: fine) { body.rally-motion-enabled .glass-panel:hover::after, body.rally-motion-enabled .glass-panel-dark:hover::after, body.rally-motion-enabled .spin-ticket:hover::after { opacity: 1; animation: rally-sheen .86s cubic-bezier(.23,1,.32,1) both; } }
+
+body.rally-motion-enabled button:not(:disabled), body.rally-motion-enabled a[href], body.rally-motion-enabled [role="button"] { transition: transform .2s cubic-bezier(.23,1,.32,1), filter .2s cubic-bezier(.23,1,.32,1), box-shadow .24s cubic-bezier(.23,1,.32,1), letter-spacing .2s cubic-bezier(.23,1,.32,1); }
+@media (hover: hover) and (pointer: fine) { body.rally-motion-enabled button:not(:disabled).rally-hover, body.rally-motion-enabled a[href].rally-hover, body.rally-motion-enabled [role="button"].rally-hover { transform: translateY(-3px) scale(1.025); filter: saturate(1.14) brightness(1.07); } body.rally-motion-enabled .glass-btn-primary.rally-hover { box-shadow: 0 18px 38px rgb(var(--color-orange) / .55), 0 0 0 4px rgb(var(--color-orange) / .12), inset 0 1.5px 0 rgb(255 255 255 / .74); letter-spacing: .015em; } }
+body.rally-motion-enabled .rally-pressed { transform: scale(.94) rotate(-.7deg) !important; }
+body.rally-motion-enabled input:focus, body.rally-motion-enabled select:focus, body.rally-motion-enabled textarea:focus { box-shadow: 0 0 0 4px rgb(var(--color-blue) / .18), 0 0 28px rgb(var(--color-blue) / .18) !important; transform: translateY(-1px); }
+body.rally-motion-enabled .fx-ripple { border-width: 2px; box-shadow: 0 0 0 6px rgb(var(--color-orange) / .08), 0 0 26px rgb(var(--color-blue) / .32); }
+
+.rally-backdrop__scan { position: absolute; inset: -30%; opacity: .24; background: linear-gradient(112deg, transparent 38%, rgb(var(--color-blue) / .2) 49%, rgb(var(--color-orange) / .18) 51%, transparent 62%); transform: translateX(-66%) rotate(-8deg); animation: rally-scan 16s ease-in-out infinite; }
+.rally-backdrop__paddle { opacity: .055; filter: drop-shadow(0 0 16px currentColor); }.rally-backdrop__paddle--one { animation: rally-paddle-drift 18s ease-in-out infinite; }.rally-backdrop__paddle--two { opacity: .045; animation: rally-paddle-drift 23s ease-in-out -7s infinite reverse; }.rally-backdrop__ball { opacity: .055; filter: drop-shadow(0 0 16px currentColor); animation: rally-ball-float 22s ease-in-out -5s infinite; }.rally-backdrop__court { opacity: .032; animation: rally-court-shift 28s ease-in-out infinite; }.rally-backdrop__trail { position: absolute; width: 50vw; height: 1px; border-top: 1px dashed rgb(var(--color-orange) / .16); transform-origin: left; animation: rally-trail 14s ease-in-out infinite; }.rally-backdrop__trail--one { top: 28%; left: -6%; transform: rotate(18deg); }.rally-backdrop__trail--two { right: -12%; bottom: 21%; border-color: rgb(var(--color-blue) / .17); transform: rotate(-26deg); animation-delay: -8s; }
+
+@keyframes rally-ball-float { 0%,100% { transform: translate3d(0,0,0) rotate(0deg) scale(1); } 40% { transform: translate3d(46px,-56px,0) rotate(160deg) scale(1.26); } 72% { transform: translate3d(-26px,25px,0) rotate(260deg) scale(.82); } }
+@keyframes rally-paddle-drift { 0%,100% { transform: rotate(28deg) translate3d(0,0,0); } 50% { transform: rotate(16deg) translate3d(-22px,18px,0); } }
+@keyframes rally-court-shift { 0%,100% { transform: perspective(540px) rotateX(61deg) rotateZ(-17deg) translate3d(0,0,0); } 50% { transform: perspective(540px) rotateX(61deg) rotateZ(-17deg) translate3d(30px,-16px,0); } }
+@keyframes rally-streak-pass { 0%,26% { transform: translateX(-54vw) rotate(-17deg); opacity: 0; } 36% { opacity: .65; } 66% { transform: translateX(124vw) rotate(-17deg); opacity: .25; } 100% { transform: translateX(124vw) rotate(-17deg); opacity: 0; } }
+@keyframes rally-impact-court { 0% { opacity: .92; transform: translate(-50%,-50%) scale(.5) rotate(-10deg); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(12) rotate(-10deg); } }
+@keyframes rally-impact-ball { 0% { opacity: 1; transform: translate(-50%,-50%) scale(.5); } 42% { opacity: 1; transform: translate(-50%,-160%) scale(1.9); } 100% { opacity: 0; transform: translate(-50%,-340%) scale(.2); } }
+@keyframes rally-impact-spark { 0% { opacity: .9; } 100% { opacity: 0; transform: translate(-50%,-50%) translateY(-86px) scaleY(.2); } }
+@keyframes rally-reveal-flare { 0% { filter: brightness(1.18) saturate(1.3); } 100% { filter: none; } }
+@keyframes rally-sheen { from { transform: translateX(-120%) skewX(-14deg); } to { transform: translateX(180%) skewX(-14deg); } }
+@keyframes rally-scan { 0%,35% { opacity: 0; transform: translateX(-66%) rotate(-8deg); } 53% { opacity: .5; } 74%,100% { opacity: 0; transform: translateX(72%) rotate(-8deg); } }
+@keyframes rally-trail { 0%,100% { opacity: .08; transform: scaleX(.45) rotate(18deg); } 50% { opacity: .68; transform: scaleX(1) rotate(18deg); } }
+
+@media (prefers-reduced-motion: reduce) { .rally-motion-layer, .rally-cursor-layer, .rally-serve-impact { display: none !important; } body.rally-motion-enabled [data-motion-reveal].is-revealed { animation: none !important; } .rally-backdrop__scan, .rally-backdrop__paddle, .rally-backdrop__ball, .rally-backdrop__court, .rally-backdrop__trail { animation: none !important; } }
