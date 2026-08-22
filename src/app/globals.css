@@ -1,0 +1,1567 @@
+/* Rally Rhythm design system: controlled sports-editorial motion, court-blue
+   calm, and tangerine action. Prefer short transform/opacity transitions. */
+@import "./premium-pickleball-motion.css";
+@import "./rally-motion-graphics.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Fredoka", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  /* Brand color channel triplets ("r g b"), consumed by tailwind.config.ts
+     via rgb(var(--color-x) / <alpha-value>). Overridden at runtime by a
+     <style> tag in layout.tsx generated from the admin's Site Settings, so
+     changing colors in the admin dashboard never requires a code change. */
+  --color-orange: 244 96 54;
+  --color-orange-dark: 214 73 31;
+  --color-orange-light: 255 140 97;
+  --color-blue: 108 212 255;
+  --color-blue-dark: 47 168 217;
+  --color-blue-light: 199 238 255;
+  --color-ink: 23 58 69;
+  --color-cream: 251 248 243;
+
+  /* "Energy" accent pair — the plasma cyan/crimson from the promo-slash FX.
+     Used specifically for promo/discount moments (promo box, applied-code
+     chip, discount badges, the spin wheel) so that whole flow reads as one
+     connected system, without replacing the core orange/blue court brand. */
+  --color-energy-cyan: 100 220 255;
+  --color-energy-red: 220 38 38;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* iOS: stop the grey flash box on every tap — we draw our own click effect instead */
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: rgb(var(--color-ink));
+  background-image:
+    radial-gradient(circle, rgb(var(--color-orange) / 0.1) 1.6px, transparent 1.6px),
+    radial-gradient(circle, rgb(var(--color-blue) / 0.14) 1.6px, transparent 1.6px);
+  background-size: 28px 28px, 28px 28px;
+  background-position: 0 0, 14px 14px;
+  color: rgb(var(--color-cream));
+  position: relative;
+}
+
+/* Form fields are almost always used inside light cards/glass panels, never
+   directly on the dark page background — but browsers make <input>,
+   <textarea>, and <select> inherit `color` from the page by default. That
+   meant every text field on the site was silently inheriting body's near-
+   white --color-cream text color, so whatever you typed (and, since the
+   placeholder pseudo-element also inherits it, the placeholder text too)
+   rendered almost invisibly pale-on-pale inside every light input box
+   sitewide — exactly the "letters aren't visible" bug. Pinning both the
+   text color and a solid, always-legible background here — regardless of
+   whatever glass panel or card the input happens to sit inside — fixes it
+   everywhere at once instead of patching every form one input at a time. */
+input,
+textarea,
+select {
+  color: rgb(var(--color-ink));
+  background-color: rgb(255 255 255 / 0.92);
+}
+input::placeholder,
+textarea::placeholder {
+  color: rgb(var(--color-ink) / 0.4);
+}
+input:disabled,
+textarea:disabled,
+select:disabled {
+  color: rgb(var(--color-ink) / 0.4);
+  background-color: rgb(255 255 255 / 0.6);
+}
+
+/* Fixed, saturated color-wash sitting behind the entire page — this is what
+   every backdrop-blur glass panel actually "sees" and distorts. Without
+   colorful, high-contrast content behind it, backdrop-filter: blur() has
+   almost nothing to blur and the glass effect barely reads. The page canvas
+   itself is dark ink so these vivid orange/blue blobs read the way the
+   liquid-glass references do (deep background, glowing color underneath),
+   and every frosted panel floating on top stays crisp and legible. This
+   layer is position: fixed so it stays put while the page scrolls past it,
+   and drifts very slowly for a "liquid" feel. */
+.glass-ambient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.glass-ambient-bg span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.85;
+  animation: glass-drift 22s ease-in-out infinite;
+}
+.glass-ambient-bg span:nth-child(1) {
+  top: -10%;
+  left: -8%;
+  height: 50vw;
+  width: 50vw;
+  background: radial-gradient(circle, rgb(var(--color-blue)), transparent 70%);
+  animation-duration: 26s;
+}
+.glass-ambient-bg span:nth-child(2) {
+  top: 15%;
+  right: -10%;
+  height: 42vw;
+  width: 42vw;
+  background: radial-gradient(circle, rgb(var(--color-orange)), transparent 70%);
+  animation-duration: 19s;
+  animation-delay: -4s;
+}
+.glass-ambient-bg span:nth-child(3) {
+  bottom: -12%;
+  left: 20%;
+  height: 46vw;
+  width: 46vw;
+  background: radial-gradient(circle, rgb(var(--color-blue-dark)), transparent 70%);
+  animation-duration: 24s;
+  animation-delay: -10s;
+}
+.glass-ambient-bg span:nth-child(4) {
+  bottom: 10%;
+  right: 10%;
+  height: 32vw;
+  width: 32vw;
+  background: radial-gradient(circle, rgb(var(--color-orange-light)), transparent 70%);
+  animation-duration: 21s;
+  animation-delay: -7s;
+}
+
+@keyframes glass-drift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(4%, -5%) scale(1.08);
+  }
+  66% {
+    transform: translate(-3%, 4%) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-ambient-bg span {
+    animation: none !important;
+  }
+}
+
+/* ---------- Fixed-position sound mute toggle ---------- */
+.fx-mute-toggle {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 50;
+  height: 44px;
+  width: 44px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--color-ink) / 0.85);
+  color: white;
+  box-shadow: 0 8px 24px rgb(var(--color-ink) / 0.25);
+  border: 2px solid rgb(var(--color-cream) / 0.5);
+  transition: transform 0.15s ease;
+}
+.fx-mute-toggle:hover {
+  transform: scale(1.08);
+}
+.fx-mute-toggle:active {
+  transform: scale(0.94);
+}
+
+/* ---------- Calm ambient court-music widget (bottom-left) ---------- */
+.fx-music-widget {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgb(var(--color-ink) / 0.85);
+  border: 2px solid rgb(var(--color-cream) / 0.5);
+  border-radius: 9999px;
+  padding: 5px;
+  box-shadow: 0 8px 24px rgb(var(--color-ink) / 0.25);
+}
+
+.fx-music-toggle {
+  height: 34px;
+  width: 34px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--color-orange));
+  color: white;
+  transition: transform 0.15s ease;
+}
+.fx-music-toggle:hover {
+  transform: scale(1.08);
+}
+.fx-music-toggle:active {
+  transform: scale(0.94);
+}
+
+.fx-music-volume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--color-cream));
+  padding-right: 10px;
+}
+.fx-music-volume input[type="range"] {
+  width: 64px;
+  height: 4px;
+  accent-color: rgb(var(--color-orange));
+  cursor: pointer;
+}
+@media (max-width: 480px) {
+  .fx-music-volume input[type="range"] {
+    width: 44px;
+  }
+}
+
+/* ---------- Click "light wave" ripple ---------- */
+.fx-ripple {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 9999;
+  background: radial-gradient(
+    circle,
+    rgb(var(--color-orange) / 0.55) 0%,
+    rgb(var(--color-blue) / 0.35) 55%,
+    transparent 72%
+  );
+  border: 2px solid rgb(var(--color-orange) / 0.6);
+  animation: fx-ripple-out 650ms cubic-bezier(0.25, 0.8, 0.35, 1) forwards;
+}
+@keyframes fx-ripple-out {
+  0% {
+    transform: scale(0);
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(9);
+    opacity: 0;
+  }
+}
+
+/* ---------- Pressable buttons/links: consistent hover + active feedback ---------- */
+button:not(:disabled),
+a,
+[role="button"] {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover,
+  a:hover,
+  [role="button"]:hover {
+    transform: translateY(-1px) scale(1.015);
+    filter: brightness(1.03);
+  }
+}
+button:not(:disabled):active,
+a:active,
+[role="button"]:active {
+  transform: translateY(0) scale(0.97);
+  filter: brightness(0.98);
+}
+
+/* ---------- Page-visit entrance animation (used by app/template.tsx) ---------- */
+.fx-page-enter {
+  animation: fx-page-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Homepage popup ad — backdrop fade + card pop-in, shown via
+   PopupAdModal.tsx. Kept minimal/generic so it works well regardless of
+   the ad's own content length or aspect ratio. */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fx-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    /* transform: none (not translateY(0)) — a non-"none" transform value on
+       this wrapper stays applied after the animation ends (fill-mode: both)
+       and creates a new containing block for any position:fixed descendant
+       (e.g. modals like AdminManualBookingForm), shrinking them to this
+       div's box instead of the real viewport and breaking their scrolling. */
+    transform: none;
+  }
+}
+
+/* Court-line divider, echoes a pickleball kitchen line */
+.kitchen-line {
+  position: relative;
+}
+.kitchen-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgb(var(--color-orange)) 0px,
+    rgb(var(--color-orange)) 14px,
+    transparent 14px,
+    transparent 22px
+  );
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* THE BUG: every form input on /book used className="input-field" but this class
+   never existed anywhere, so all booking-form fields rendered with zero border,
+   zero padding, and the browser default tiny font — most visible on phones, where
+   inputs below 16px also trigger an unwanted auto-zoom on focus in iOS Safari. */
+.input-field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border-width: 2px;
+  border-color: rgb(var(--color-ink) / 0.15);
+  background-color: white;
+  padding: 0.625rem 1rem;
+  font-size: 16px; /* keep >= 16px so iOS Safari never auto-zooms on focus */
+  color: rgb(var(--color-ink));
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input-field::placeholder {
+  color: rgb(var(--color-ink) / 0.35);
+}
+.input-field:focus {
+  outline: none;
+  border-color: rgb(var(--color-orange));
+  box-shadow: 0 0 0 3px rgb(var(--color-orange) / 0.15);
+}
+.input-field[type="file"] {
+  padding: 0.5rem 0.75rem;
+  font-size: 14px;
+}
+
+.focus-ring:focus-visible {
+  outline: 3px solid rgb(var(--color-blue-dark));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* custom scrollbar for schedule grid */
+.scroll-thin::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-orange-light));
+  border-radius: 8px;
+}
+
+/* hides the scrollbar while keeping native swipe/scroll (e.g. admin tab bar) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================
+   Playful date-nav "orb" buttons (prev/next day)
+   ============================================================ */
+.nav-orb {
+  position: relative;
+  height: 3rem;
+  width: 3rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: linear-gradient(145deg, rgb(var(--color-orange)), rgb(var(--color-orange-dark)));
+  color: white;
+  box-shadow: 0 6px 16px rgb(var(--color-orange) / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  border: none;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, filter 0.2s ease;
+}
+.nav-orb svg {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .nav-orb:hover:not(:disabled) {
+    transform: scale(1.12) rotate(-4deg);
+    box-shadow: 0 10px 24px rgb(var(--color-orange) / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  }
+  .nav-orb:hover:not(:disabled) svg.nav-orb-icon-prev {
+    transform: translateX(-2px);
+  }
+  .nav-orb:hover:not(:disabled) svg.nav-orb-icon-next {
+    transform: translateX(2px);
+  }
+}
+.nav-orb:active:not(:disabled) {
+  transform: scale(0.88) rotate(0deg);
+}
+.nav-orb:disabled {
+  background: rgb(var(--color-ink) / 0.12);
+  box-shadow: none;
+  color: rgb(var(--color-ink) / 0.3);
+  cursor: not-allowed;
+}
+
+/* Date label swap-in animation, retriggered by remounting with key={value} */
+.date-pop-in {
+  animation: date-pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes date-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   Schedule grid: staggered slot entrance + selection pop
+   ============================================================ */
+.slot-enter {
+  animation: slot-enter 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes slot-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.slot-selected-pop {
+  animation: slot-selected-pop 340ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes slot-selected-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.slot-check-in {
+  animation: slot-check-in 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes slot-check-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Admin schedule popover */
+.admin-popover {
+  animation: admin-popover-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top center;
+}
+@keyframes admin-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   Booking wizard: step entrance + total pulse
+   ============================================================ */
+.wizard-step {
+  animation: wizard-step-in 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes wizard-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.total-pulse {
+  animation: total-pulse 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes total-pulse {
+  0% {
+    transform: scale(1);
+    color: rgb(var(--color-orange));
+  }
+  45% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.step-badge {
+  transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+@keyframes soft-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-soft-float {
+  animation: soft-float 3.2s ease-in-out infinite;
+}
+
+/* ============================================================
+   Spin the wheel
+   ============================================================ */
+
+/* Ambient glow ring behind the wheel while it waits to be spun */
+@keyframes spin-wheel-glow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.06); }
+}
+.spin-wheel-glow {
+  animation: spin-wheel-glow 2.6s ease-in-out infinite;
+}
+
+/* Rim bulbs chase around the wheel bezel like a carnival prize wheel */
+@keyframes bulb-twinkle {
+  0%, 100% { opacity: 0.28; transform: translate(-50%, -50%) scale(0.75); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+}
+
+/* The wheel gets a brief squash/settle "thud" the instant it stops */
+@keyframes spin-wheel-land {
+  0% { transform: scale(1); }
+  35% { transform: scale(0.975, 1.03); }
+  65% { transform: scale(1.015, 0.99); }
+  100% { transform: scale(1); }
+}
+.spin-wheel-land {
+  animation: spin-wheel-land 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Pointer gives a little nod when the wheel lands */
+@keyframes spin-pointer-bounce {
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  25% { transform: translateX(-50%) rotate(-14deg); }
+  55% { transform: translateX(-50%) rotate(9deg); }
+  80% { transform: translateX(-50%) rotate(-4deg); }
+}
+.spin-pointer-bounce {
+  animation: spin-pointer-bounce 420ms ease-out both;
+  transform-origin: top center;
+}
+
+/* Shimmering sweep across the primary Spin button so it reads as "tap me" */
+@keyframes spin-button-shimmer {
+  0% { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(220%) skewX(-12deg); }
+}
+.spin-button-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.45) 50%, transparent 70%);
+  animation: spin-button-shimmer 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Confetti: each piece falls + tumbles, duration/delay/x-offset randomized inline per-piece */
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(var(--confetti-x, 0), -10vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(calc(var(--confetti-x, 0) + var(--confetti-drift, 0px)), 105vh, 0) rotate(var(--confetti-spin, 480deg));
+    opacity: 0.9;
+  }
+}
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 14px;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.35, 0, 0.65, 1);
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+  pointer-events: none;
+  z-index: 60;
+  border-radius: 2px;
+}
+
+@keyframes prize-code-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.prize-code-pop {
+  animation: prize-code-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin-wheel-glow,
+  .spin-wheel-land,
+  .spin-pointer-bounce,
+  .spin-button-shimmer::after,
+  .confetti-piece,
+  .prize-code-pop {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   Spin the wheel — "night match" arena redesign
+   ============================================================ */
+
+/* Dark stage that houses the wheel: a stadium-under-the-lights moment,
+   so the spin itself is the focal point instead of competing with a
+   side legend or a plain flat card. */
+.spin-arena {
+  border-radius: 2rem;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 85% at 50% -8%, rgba(244, 96, 54, 0.32), transparent 58%),
+    radial-gradient(85% 65% at 4% 108%, rgba(108, 212, 255, 0.2), transparent 55%),
+    linear-gradient(165deg, #0e2530 0%, #123a4c 55%, #0a1e26 100%);
+  box-shadow: 0 30px 60px rgba(8, 24, 31, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Faint pickleball court grid etched into the arena floor */
+.spin-arena__court {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image: repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.05) 0px,
+      rgba(255, 255, 255, 0.05) 1px,
+      transparent 1px,
+      transparent 58px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.05) 0px,
+      rgba(255, 255, 255, 0.05) 1px,
+      transparent 1px,
+      transparent 58px
+    );
+}
+
+/* Slow-drifting floodlight sweep for a "live, under the lights" feel */
+@keyframes spin-arena-sweep {
+  0%,
+  100% {
+    transform: translate(-8%, -6%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(8%, 5%) scale(1.15);
+    opacity: 0.85;
+  }
+}
+.spin-arena__sweep {
+  position: absolute;
+  inset: -25%;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 214, 163, 0.18), transparent 70%);
+  animation: spin-arena-sweep 8s ease-in-out infinite;
+}
+
+/* Faint net-shadow band across the top of the arena, like stadium netting
+   catching the floodlights overhead */
+.spin-arena__net {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 40%;
+  border-radius: 2rem 2rem 0 0;
+  pointer-events: none;
+  opacity: 0.14;
+  background-image: repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.5) 0px,
+      rgba(255, 255, 255, 0.5) 1px,
+      transparent 1px,
+      transparent 13px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.5) 0px,
+      rgba(255, 255, 255, 0.5) 1px,
+      transparent 1px,
+      transparent 13px
+    );
+  mask-image: linear-gradient(to bottom, black, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent);
+}
+
+/* Result voucher: a clean "ticket" card with a stitched perforation divider
+   between the headline and the discount code, instead of a plain box. */
+.spin-ticket {
+  border-radius: 1.75rem;
+  background: white;
+}
+.spin-ticket--won {
+  background: linear-gradient(160deg, #fff 0%, rgba(244, 96, 54, 0.05) 100%);
+  border: 2px solid rgba(244, 96, 54, 0.25);
+}
+.spin-ticket--won::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: linear-gradient(90deg, #f46036, #6cd4ff, #f46036);
+}
+.spin-ticket--lost {
+  background: white;
+  border: 2px solid rgba(23, 58, 69, 0.1);
+}
+.spin-ticket--lost::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: linear-gradient(90deg, rgba(23, 58, 69, 0.22), rgba(108, 212, 255, 0.35), rgba(23, 58, 69, 0.22));
+}
+
+.spin-ticket__divider {
+  position: relative;
+  height: 0;
+  border-top: 2px dashed rgba(23, 58, 69, 0.14);
+}
+.spin-ticket__divider-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  width: 26px;
+  border-radius: 9999px;
+  background: rgb(var(--color-orange));
+  box-shadow: 0 2px 8px rgba(244, 96, 54, 0.35), 0 0 0 4px white;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin-arena__sweep {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   Promo code success animation — "PLASMA SLASH" v3
+   ============================================================
+   v2 (above, now removed) drove everything through ~30 CSS @keyframes
+   blocks on individually-positioned DOM nodes. v3 renders the orb, plasma
+   lightning, blade + motion-blur trail, and all particles on a single
+   <canvas> driven from PromoSuccessAnimation.tsx's rAF loop (see FX in
+   promoFxTiming.ts for the beat timings) — only the price text, the
+   "SLASH!!" onomatopoeia, the discount stamp, and the impact flash stay as
+   real DOM nodes, since those need crisp text rendering / accessibility.
+   Colors are pulled from the --color-energy-cyan / --color-energy-red
+   CSS vars (admin-editable in Site Settings → Brand colors) so this stays
+   in sync with the rest of the site's "energy" accent.
+   ============================================================ */
+
+/* z-index is pushed to the top of the practical range (instead of the
+   original 80-84 band) and .promofx-layer gets its own stacking context
+   via `isolation: isolate`, so nothing else added to the page later —
+   modals, admin dialogs, etc. — can ever end up painted on top of or
+   interleaved with this sequence. This overlay is portaled straight onto
+   <body> (see ModalPortal), so it never inherits a transformed/`overflow:
+   hidden` ancestor's containing block or clipping either. */
+.promofx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  isolation: isolate;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.promofx-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.promofx-flash-v3 {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: plus-lighter;
+  background: radial-gradient(
+    circle at var(--fx-x, 50%) var(--fx-y, 50%),
+    rgba(255, 255, 255, 0.95),
+    rgb(var(--color-energy-cyan) / 0.4) 30%,
+    transparent 62%
+  );
+}
+
+.promofx-target-v3 {
+  position: fixed;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  will-change: transform;
+}
+.promofx-old-total-v3,
+.promofx-glitch-total-v3 {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.promofx-glitch-total-v3 {
+  transition: none;
+}
+
+.promofx-onomatopoeia-v3 {
+  position: fixed;
+  z-index: 4;
+  pointer-events: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.1rem;
+  letter-spacing: 0.03em;
+  color: rgb(var(--color-energy-cyan));
+  -webkit-text-stroke: 2px #072235;
+  text-shadow:
+    3px 3px 0 rgb(var(--color-energy-red)),
+    -1px -1px 0 #072235,
+    0 0 20px rgb(var(--color-energy-cyan) / 0.9);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.promofx-stamp-v3 {
+  position: fixed;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+}
+.promofx-stamp-ring-v3 {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid rgb(var(--color-energy-red));
+  box-shadow: 0 0 8px rgb(var(--color-energy-red) / 0.6), inset 0 0 8px rgb(var(--color-energy-red) / 0.2);
+}
+.promofx-stamp-text-v3 {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(0.65rem, 3vw, 0.95rem);
+  color: rgb(var(--color-energy-red));
+  text-align: center;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .promofx-onomatopoeia-v3 {
+    font-size: 1.4rem;
+  }
+  .promofx-stamp-v3 {
+    width: 46px;
+    height: 46px;
+    margin: -23px 0 0 -23px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promofx-layer {
+    display: none;
+  }
+}
+
+/* ============================================================
+   LIQUID GLASS design system
+   ------------------------------------------------------------
+   A glassmorphism layer built entirely on the existing brand
+   color vars (--color-orange / --color-blue / --color-ink /
+   --color-cream) above, so admin edits to Site Settings → Brand
+   colors still flow through every glass surface automatically.
+   Nothing here introduces a new palette — it just gives the
+   current court orange/blue a frosted-glass, glowing-capsule
+   treatment (pill nav, glossy buttons, soft gradient orbs,
+   frosted cards) inspired by modern "liquid glass" UI.
+   ============================================================ */
+
+/* Soft blurred color blobs used behind hero/section content for
+   ambient depth — never interactive, always behind z-0 content. */
+.glass-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  pointer-events: none;
+  z-index: 0;
+}
+.glass-orb--orange {
+  background: radial-gradient(circle, rgb(var(--color-orange) / 0.55), transparent 70%);
+}
+.glass-orb--blue {
+  background: radial-gradient(circle, rgb(var(--color-blue) / 0.6), transparent 70%);
+}
+
+/* Frosted glass card for light (cream) backgrounds */
+.glass-panel {
+  position: relative;
+  background: linear-gradient(155deg, rgb(255 255 255 / 0.88), rgb(255 255 255 / 0.62) 55%, rgb(var(--color-blue-light) / 0.35));
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid rgb(255 255 255 / 0.85);
+  box-shadow:
+    0 24px 60px rgb(0 0 0 / 0.4),
+    0 4px 12px rgb(0 0 0 / 0.2),
+    inset 0 1.5px 0 rgb(255 255 255 / 1),
+    inset 0 -1px 0 rgb(255 255 255 / 0.3),
+    inset 0 0 50px rgb(255 255 255 / 0.35);
+}
+.glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(155deg, rgb(255 255 255 / 0.9), rgb(var(--color-blue) / 0.25) 40%, transparent 70%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Used in place of .glass-panel while an element is being captured by
+   html2canvas (e.g. the week-schedule "Download as image" export).
+   html2canvas doesn't support backdrop-filter, and flattens .glass-panel's
+   translucent diagonal gradient + inset highlight shadows against a solid
+   background — which bakes in a visible diagonal "glare" streak on the
+   exported PNG. This variant swaps in a plain solid card with no gradient,
+   blur, or inset highlights, so the download comes out clean. Only meant
+   to be applied transiently during export, not for normal on-screen use. */
+.glass-panel--flat {
+  position: relative;
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgb(var(--color-ink) / 0.12);
+  box-shadow: none;
+}
+.glass-panel--flat::before {
+  content: none;
+}
+
+/* Frosted glass card for dark (ink) backgrounds, e.g. the pricing section */
+.glass-panel-dark {
+  position: relative;
+  background: linear-gradient(155deg, rgb(255 255 255 / 0.22), rgb(255 255 255 / 0.04) 60%, rgb(var(--color-blue) / 0.12));
+  backdrop-filter: blur(36px) saturate(220%);
+  -webkit-backdrop-filter: blur(36px) saturate(220%);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  box-shadow:
+    0 20px 50px rgb(0 0 0 / 0.35),
+    inset 0 1.5px 0 rgb(255 255 255 / 0.3),
+    inset 0 0 40px rgb(var(--color-blue) / 0.06);
+}
+.glass-panel-dark:hover {
+  border-color: rgb(var(--color-blue) / 0.55);
+  box-shadow:
+    0 20px 50px rgb(0 0 0 / 0.35),
+    inset 0 1.5px 0 rgb(255 255 255 / 0.3),
+    0 0 30px rgb(var(--color-blue) / 0.2);
+}
+
+/* Floating pill nav bar (see SiteHeader) */
+.glass-nav {
+  background: linear-gradient(155deg, rgb(255 255 255 / 0.82), rgb(255 255 255 / 0.5) 60%, rgb(var(--color-blue-light) / 0.4));
+  backdrop-filter: blur(44px) saturate(220%);
+  -webkit-backdrop-filter: blur(44px) saturate(220%);
+  border: 1px solid rgb(255 255 255 / 0.9);
+  box-shadow:
+    0 16px 44px rgb(0 0 0 / 0.35),
+    inset 0 1.5px 0 rgb(255 255 255 / 1),
+    inset 0 -1px 0 rgb(255 255 255 / 0.35);
+}
+
+/* Glossy gradient capsule button — the "liquid glass" pill look */
+.glass-btn-primary {
+  position: relative;
+  background: linear-gradient(160deg, rgb(var(--color-orange-light)), rgb(var(--color-orange)) 55%, rgb(var(--color-orange-dark)));
+  box-shadow:
+    0 10px 28px rgb(var(--color-orange) / 0.55),
+    inset 0 1.5px 0 rgb(255 255 255 / 0.75),
+    inset 0 -8px 14px rgb(0 0 0 / 0.16);
+  border: 1px solid rgb(255 255 255 / 0.45);
+}
+.glass-btn-primary:hover {
+  box-shadow:
+    0 12px 34px rgb(var(--color-orange) / 0.65),
+    inset 0 1.5px 0 rgb(255 255 255 / 0.8),
+    inset 0 -8px 14px rgb(0 0 0 / 0.16);
+}
+
+/* Glass (outline) secondary button — frosted, not filled */
+.glass-btn-secondary {
+  background: linear-gradient(155deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.15));
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1.5px solid rgb(255 255 255 / 0.7);
+  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / 0.85), 0 6px 18px rgb(var(--color-ink) / 0.08);
+}
+.glass-btn-secondary:hover {
+  border-color: rgb(var(--color-blue-dark) / 0.6);
+  background: linear-gradient(155deg, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.25));
+}
+
+/* Small glass "chip" badge, e.g. the hero eyebrow label */
+.glass-chip {
+  background: linear-gradient(120deg, rgb(var(--color-blue-light) / 0.85), rgb(255 255 255 / 0.35));
+  backdrop-filter: blur(16px) saturate(220%);
+  -webkit-backdrop-filter: blur(16px) saturate(220%);
+  border: 1px solid rgb(255 255 255 / 0.8);
+  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / 0.9), 0 4px 14px rgb(var(--color-blue-dark) / 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-orb {
+    display: none;
+  }
+}
+
+/* ============================================================
+   "Energy" accent utilities — the plasma cyan/crimson pair used by the
+   promo-slash FX, reused elsewhere for promo/discount moments so those
+   flows feel like one connected system (see AdminColors "Energy cyan" /
+   "Energy red" for the admin-editable source values).
+   ============================================================ */
+.energy-glow-border {
+  border-color: rgb(var(--color-energy-cyan) / 0.55) !important;
+  box-shadow: 0 0 0 3px rgb(var(--color-energy-cyan) / 0.12), 0 0 16px rgb(var(--color-energy-cyan) / 0.18);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.energy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  border: 1.5px solid rgb(var(--color-energy-red) / 0.35);
+  background: linear-gradient(135deg, rgb(var(--color-energy-cyan) / 0.14), rgb(var(--color-energy-red) / 0.1));
+  color: rgb(var(--color-energy-red));
+  font-weight: 700;
+}
+.energy-btn {
+  background: linear-gradient(135deg, rgb(var(--color-energy-cyan)), rgb(var(--color-energy-red)));
+  color: white;
+  box-shadow: 0 4px 14px rgb(var(--color-energy-red) / 0.35);
+}
+.energy-btn:hover {
+  filter: brightness(1.06);
+}
+
+/* ---- Small toolbar buttons for the admin social-export design canvas ---- */
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--color-ink) / 0.15);
+  background: white;
+  color: rgb(var(--color-ink) / 0.75);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.375rem 0.75rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.toolbar-btn:hover:not(:disabled) {
+  border-color: rgb(var(--color-orange) / 0.4);
+}
+.toolbar-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.toolbar-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--color-ink) / 0.15);
+  background: white;
+  color: rgb(var(--color-ink) / 0.7);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.toolbar-btn-sm:hover {
+  border-color: rgb(var(--color-orange) / 0.4);
+}
+@@
+.toolbar-btn-sm:hover {
+  border-color: rgb(var(--color-orange) / 0.4);
+}
+
+/* ============================================================
+   RALLY RHYTHM — site-wide interaction and reveal system
+   ------------------------------------------------------------
+   Motion is organized around the same interaction cadence everywhere:
+   prepare → move → settle. MotionDirector only enables these rules after
+   hydration, so there is no hidden content when JavaScript is unavailable.
+   ============================================================ */
+
+:root {
+  --rally-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --rally-ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --scroll-progress: 0;
+}
+
+body.motion-ready [data-motion-reveal] {
+  opacity: 0;
+  perspective: 1200px;
+  transform: translate3d(0, 22px, 0) scale(0.985) rotateX(4deg);
+  transform-origin: 50% 100%;
+  filter: blur(2px);
+  transition:
+    opacity 520ms var(--rally-ease-out),
+    transform 620ms var(--rally-ease-out),
+    filter 520ms var(--rally-ease-out);
+  transition-delay: calc(var(--motion-index, 0) * 48ms);
+  will-change: transform, opacity, filter;
+}
+
+body.motion-ready [data-motion-reveal].is-revealed,
+body.motion-ready [data-motion-reveal]:focus-within {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1) rotateX(0deg);
+  filter: blur(0);
+}
+
+/* Each active card gets a mild court-side lift rather than an exaggerated
+   bounce. This remains restricted to real hover devices, not touch screens. */
+@media (hover: hover) and (pointer: fine) {
+  .glass-panel[data-motion-interactive],
+  .glass-panel-dark[data-motion-interactive] {
+    transition:
+      transform 220ms var(--rally-ease-out),
+      box-shadow 220ms var(--rally-ease-out),
+      border-color 220ms var(--rally-ease-out);
+  }
+
+  .glass-panel[data-motion-interactive]:hover,
+  .glass-panel-dark[data-motion-interactive]:hover {
+    transform: translate3d(0, -4px, 0);
+  }
+
+  .glass-panel[data-motion-interactive]:hover {
+    box-shadow:
+      0 30px 72px rgb(0 0 0 / 0.34),
+      0 8px 20px rgb(0 0 0 / 0.14),
+      inset 0 1.5px 0 rgb(255 255 255 / 1),
+      0 0 0 1px rgb(var(--color-blue) / 0.26);
+  }
+}
+
+/* Keep press response instant, visible, and safely interruptible. */
+[data-rally-control],
+.glass-btn-primary,
+.glass-btn-secondary,
+.site-nav-link {
+  transition:
+    transform 160ms var(--rally-ease-out),
+    box-shadow 180ms var(--rally-ease-out),
+    background-color 180ms var(--rally-ease-out),
+    color 180ms var(--rally-ease-out),
+    border-color 180ms var(--rally-ease-out) !important;
+}
+
+[data-rally-control]:active,
+.glass-btn-primary:active,
+.glass-btn-secondary:active,
+.site-nav-link:active {
+  transform: scale(0.97) !important;
+}
+
+/* Header progress gives long pages a quiet sense of traversal without a
+   persistent progress bar taking up room in the layout. */
+.site-header {
+  transition: transform 220ms var(--rally-ease-out);
+}
+.site-header--scrolled {
+  transform: translate3d(0, -2px, 0);
+}
+.site-nav-shell {
+  position: relative;
+  overflow: hidden;
+}
+.site-nav-progress {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 0;
+  height: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgb(var(--color-orange)), rgb(var(--color-blue)));
+  transform: scaleX(var(--scroll-progress));
+  transform-origin: left center;
+  opacity: 0.8;
+  transition: transform 140ms linear;
+}
+.site-nav-link {
+  position: relative;
+}
+.site-nav-link--active {
+  background: rgb(var(--color-orange) / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(var(--color-orange) / 0.14);
+}
+
+/* Hero: image movement is deliberately low amplitude so copy remains stable
+   while each slide gains a perceptible direction. */
+.hero-slide {
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 640ms var(--rally-ease-out);
+}
+.hero-slide--active {
+  z-index: 1;
+  opacity: 1;
+  pointer-events: auto;
+}
+.hero-slide__image {
+  transform: scale(1.06) translate3d(0, 0, 0);
+  transition: transform 1250ms var(--rally-ease-out);
+}
+.hero-slide--active.hero-slide--forward .hero-slide__image {
+  transform: scale(1.01) translate3d(-0.75%, 0, 0);
+}
+.hero-slide--active.hero-slide--backward .hero-slide__image {
+  transform: scale(1.01) translate3d(0.75%, 0, 0);
+}
+.hero-slide__veil {
+  background: linear-gradient(135deg, rgb(var(--color-ink) / 0.24), transparent 58%, rgb(var(--color-ink) / 0.2));
+}
+.hero-slide__caption {
+  background: linear-gradient(to top, rgb(0 0 0 / 0.62), transparent);
+  transform: translate3d(0, 6px, 0);
+  opacity: 0;
+  transition: transform 460ms 120ms var(--rally-ease-out), opacity 460ms 120ms var(--rally-ease-out);
+}
+.hero-slide--active .hero-slide__caption {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+}
+.hero-slide__controls {
+  pointer-events: none;
+}
+.hero-slide__controls > * {
+  pointer-events: auto;
+}
+.hero-slide__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  width: 2.25rem;
+  border-radius: 9999px;
+  color: white;
+  background: rgb(var(--color-ink) / 0.48);
+  border: 1px solid rgb(255 255 255 / 0.48);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.hero-slide__arrow svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hero-slide__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.55);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.14);
+  transition: width 320ms var(--rally-ease-out), background-color 320ms var(--rally-ease-out);
+}
+.hero-slide__dot--active {
+  width: 1.65rem;
+  background: white;
+}
+.hero-float-card {
+  animation: hero-card-settle 700ms 180ms var(--rally-ease-out) both;
+}
+@keyframes hero-card-settle {
+  from { opacity: 0; transform: translate3d(-8px, 14px, 0) scale(0.96); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* ============================================================
+   3D SHOWCASE — real CSS 3D (perspective + translateZ layers),
+   no canvas/WebGL. Pointer tilt handled in JS via --tilt-x/--tilt-y;
+   everything else here is a pure CSS idle loop.
+   ============================================================ */
+.hero-3d-showcase {
+  position: absolute;
+  top: -2.25rem;
+  right: -0.5rem;
+  width: 132px;
+  height: 132px;
+  z-index: 2;
+  perspective: 900px;
+  pointer-events: none;
+}
+.hero-3d-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 6deg)) rotateY(var(--tilt-y, -10deg));
+  transition: transform 420ms var(--rally-ease-out);
+  animation: hero-3d-enter 900ms 260ms var(--rally-ease-out) both;
+}
+.hero-3d-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+}
+.hero-3d-layer--ring {
+  border-radius: 9999px;
+  border: 1.5px dashed rgb(255 255 255 / 0.35);
+  transform: translateZ(-18px) scale(1.18);
+  animation: hero-3d-spin 22s linear infinite;
+}
+.hero-3d-layer--glow {
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(var(--color-orange) / 0.5), transparent 68%);
+  filter: blur(18px);
+  transform: translateZ(-30px) scale(1.3);
+}
+.hero-3d-layer--shadow {
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(0 0 0 / 0.38), transparent 72%);
+  transform: translateZ(-46px) translateY(30%) scale(1.05, 0.4);
+}
+.hero-3d-layer--paddle {
+  transform: translateZ(10px) translate(-8px, 4px) rotate(-14deg);
+  filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.4));
+  animation: hero-3d-bob 5.5s ease-in-out infinite;
+}
+.hero-3d-layer--paddle img {
+  width: 58px;
+  height: auto;
+}
+.hero-3d-layer--ball {
+  transform: translateZ(46px) translate(22px, -26px);
+  filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.35));
+  animation: hero-3d-orbit 7s ease-in-out infinite;
+}
+.hero-3d-layer--ball img {
+  width: 34px;
+  height: auto;
+}
+
+@keyframes hero-3d-enter {
+  from { opacity: 0; transform: translate3d(0, -10px, 0) scale(0.85); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes hero-3d-spin {
+  to { transform: translateZ(-18px) scale(1.18) rotate(360deg); }
+}
+@keyframes hero-3d-bob {
+  0%, 100% { transform: translateZ(10px) translate(-8px, 4px) rotate(-14deg); }
+  50% { transform: translateZ(16px) translate(-8px, -3px) rotate(-9deg); }
+}
+@keyframes hero-3d-orbit {
+  0%, 100% { transform: translateZ(46px) translate(22px, -26px) rotate(0deg); }
+  50% { transform: translateZ(58px) translate(26px, -34px) rotate(22deg); }
+}
+
+/* Scroll-linked parallax drift for the ambient glass orbs — reuses the
+   --scroll-progress custom property MotionDirector already maintains, so
+   no extra scroll listeners are introduced. */
+body.rally-motion-enabled .glass-orb {
+  transform: translate3d(0, calc(var(--scroll-progress, 0) * -46px), 0);
+  transition: transform 60ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header,
+  .site-nav-progress,
+  .hero-slide,
+  .hero-slide__image,
+  .hero-slide__caption,
+  .hero-float-card,
+  .hero-3d-scene,
+  .hero-3d-layer--ring,
+  .hero-3d-layer--paddle,
+  .hero-3d-layer--ball,
+  body.motion-ready [data-motion-reveal] {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .hero-3d-showcase {
+    display: none !important;
+  }
+  body.rally-motion-enabled .glass-orb {
+    transform: none !important;
+  }
+}
+
+
+/* PICKLEBALL PLAYBOOK — cohesive motion pass */
+.pickleball-shader {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: .9;
+}
+.hero-copy {
+  animation: hero-copy-in 720ms var(--rally-ease-out) both;
+}
+.hero-copy > * { animation: hero-line-in 680ms var(--rally-ease-out) both; }
+.hero-copy > *:nth-child(2) { animation-delay: 90ms; }
+.hero-copy > *:nth-child(3) { animation-delay: 150ms; }
+.hero-copy > *:nth-child(4) { animation-delay: 220ms; }
+@keyframes hero-copy-in { from { opacity: 0; transform: translate3d(-18px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes hero-line-in { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
+
+.playbook-ticker {
+  overflow: hidden;
+  border-block: 1px solid rgb(255 255 255 / .14);
+  background: rgb(var(--color-orange) / .92);
+  color: white;
+  transform: rotate(-1.2deg) scale(1.02);
+  box-shadow: 0 16px 36px rgb(0 0 0 / .18);
+}
+.playbook-ticker__track {
+  display: flex;
+  width: max-content;
+  animation: ticker-slide 24s linear infinite;
+}
+.playbook-ticker__item { display: inline-flex; align-items: center; gap: .8rem; padding: .9rem 1.2rem; white-space: nowrap; font: 700 .72rem/1 var(--font-body); letter-spacing: .18em; text-transform: uppercase; }
+.playbook-ticker__dot { width: .42rem; height: .42rem; border-radius: 50%; background: rgb(var(--color-blue-light)); box-shadow: 0 0 12px rgb(var(--color-blue-light)); }
+@keyframes ticker-slide { to { transform: translateX(-50%); } }
+
+.motion-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; }
+.motion-grid__feature { grid-column: span 5; min-height: 190px; }
+.motion-grid__wide { grid-column: span 7; }
+.motion-grid__card { position: relative; overflow: hidden; isolation: isolate; }
+.motion-grid__card::after { content: ""; position: absolute; inset: -40%; z-index: -1; background: conic-gradient(from 180deg, transparent, rgb(var(--color-blue) / .18), transparent 35%, rgb(var(--color-orange) / .14), transparent 65%); animation: grid-orbit 9s linear infinite; }
+.motion-grid__card:nth-child(2)::after { animation-direction: reverse; animation-duration: 12s; }
+.motion-grid__card:nth-child(3)::after { animation-duration: 15s; }
+@keyframes grid-orbit { to { transform: rotate(360deg); } }
+
+.fx-tilt { transform-style: preserve-3d; transition: transform 260ms var(--rally-ease-out), box-shadow 260ms var(--rally-ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .fx-tilt:hover { transform: perspective(900px) rotateX(2deg) rotateY(-2deg) translateY(-6px); box-shadow: 0 28px 58px rgb(0 0 0 / .24); }
+  .fx-magnetic:hover { transform: translateY(-2px) scale(1.025); }
+  .glass-nav:hover { box-shadow: 0 20px 44px rgb(0 0 0 / .22), inset 0 1px 0 rgb(255 255 255 / .75); }
+}
+.fx-magnetic:active { transform: scale(.97); }
+
+.mobile-menu { transform-origin: top right; transition: opacity 180ms var(--rally-ease-out), transform 220ms var(--rally-ease-out); }
+.mobile-menu[data-open="false"] { pointer-events: none; opacity: 0; transform: translateY(-8px) scale(.97); }
+.mobile-menu[data-open="true"] { opacity: 1; transform: none; }
+
+@media (max-width: 700px) {
+  .motion-grid { grid-template-columns: 1fr; }
+  .motion-grid__feature, .motion-grid__wide { grid-column: auto; }
+  .playbook-ticker__track { animation-duration: 18s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pickleball-shader, .playbook-ticker__track, .motion-grid__card::after, .hero-copy, .hero-copy > * { animation: none !important; }
+  .fx-tilt, .fx-magnetic { transition: none !important; }
+}
